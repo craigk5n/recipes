@@ -1,0 +1,89 @@
+/* Hide non-recipe elements */
+.doNotPrint,
+.kh-main-header,
+.navbar,
+.modal,
+.btn-group,
+.alert {
+  display: none !important;
+}
+
+/* Remove card chrome for clean output */
+.card {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.card-header {
+  background: none !important;
+  color: #000 !important;
+  border-bottom: 2px solid #333;
+  padding: 0 0 0.25rem 0 !important;
+}
+
+.card-header .h4 {
+  color: #000 !important;
+}
+
+.card-body {
+  padding: 0.5rem 0 0 0 !important;
+}
+
+/* Clean up layout */
+body {
+  padding: 0 !important;
+  margin: 0 !important;
+  font-size: 12pt;
+}
+
+.container {
+  max-width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Primary photo: reasonable print size */
+.text-center.mb-4 img {
+  max-height: 250px !important;
+}
+
+/* Ingredients list: clean borders, avoid breaks */
+.list-group-flush .list-group-item {
+  padding: 0.25rem 0;
+  break-inside: avoid;
+}
+
+/* Instructions card: remove background for ink savings */
+.card-body .bg-light {
+  background: none !important;
+  border: 1px solid #ccc !important;
+  padding: 0.5rem !important;
+}
+
+/* Notes: compact */
+.card.mb-2 {
+  border: none !important;
+  border-bottom: 1px solid #ddd !important;
+  break-inside: avoid;
+}
+
+.card.mb-2 .card-body {
+  padding: 0.25rem 0 !important;
+}
+
+/* Links: show URL after text */
+a[href^="http"]::after {
+  content: " (" attr(href) ")";
+  font-size: 0.85em;
+  color: #666;
+  word-break: break-all;
+}
+
+/* Avoid page breaks inside key sections */
+h5, h6 {
+  break-after: avoid;
+}
+
+#ingredientList {
+  break-inside: avoid;
+}

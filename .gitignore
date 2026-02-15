@@ -1,0 +1,12 @@
+# Database credentials
+includes/settings.php
+.env
+
+# Composer dependencies
+vendor/
+
+# Logs
+logs/
+
+# Documentation for Claude
+CLAUDE.md1
