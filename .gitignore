@@ -10,3 +10,4 @@ logs/
 
 # Documentation for Claude
 CLAUDE.md1
+.claude/
