@@ -866,6 +866,64 @@ Write step-by-step deployment instructions.
 
 ---
 
+## Epic 7: Release Readiness & Deployment
+
+**Priority:** HIGH  
+**Effort:** Medium  
+**Business Value:** Ensures the application can be safely and consistently deployed.
+
+### Description
+Prepare the application for its first official release, addressing environment-specific dependencies and finalizing documentation.
+
+### Tasks
+
+#### Task 7.1: Decouple from Parent Directory
+**Status:** Open  
+**Assignee:** TBD  
+**Effort:** 4 hours
+
+**Description:**
+The application currently depends on files in `../` (e.g., `header.php`, `style.css`). These should be made optional or configurable to allow standalone deployment.
+
+**Acceptance Criteria:**
+- [ ] Identify all `../` includes and references.
+- [ ] Implement checks to see if parent files exist before including.
+- [ ] Provide default local versions or fallbacks for standalone mode.
+- [ ] Add configuration setting to enable/disable parent site integration.
+
+---
+
+#### Task 7.2: Final Security Audit
+**Status:** Open  
+**Assignee:** TBD  
+**Effort:** 8 hours
+
+**Description:**
+Perform a comprehensive manual and automated security audit before the 1.0 release.
+
+**Acceptance Criteria:**
+- [ ] Run automated vulnerability scanners (e.g., OWASP ZAP).
+- [ ] Manually verify all input sanitization points.
+- [ ] Confirm no sensitive information is logged in production.
+- [ ] Verify all cookies are properly scoped and secured.
+
+---
+
+#### Task 7.3: Prepare Release Notes & Versioning
+**Status:** Open  
+**Assignee:** TBD  
+**Effort:** 2 hours
+
+**Description:**
+Establish a formal versioning scheme and document changes.
+
+**Acceptance Criteria:**
+- [ ] Define semantic versioning policy.
+- [ ] Create `CHANGELOG.md`.
+- [ ] Tag the 1.0.0 release in Git.
+
+---
+
 ## Quick Wins (Immediate Actions)
 
 These tasks can be done immediately for quick security improvements:
@@ -951,66 +1009,6 @@ These tasks can be done immediately for quick security improvements:
 
 ---
 
----
-
-## Epic 7: Release Readiness & Deployment
-
-**Priority:** HIGH  
-**Effort:** Medium  
-**Business Value:** Ensures the application can be safely and consistently deployed.
-
-### Description
-Prepare the application for its first official release, addressing environment-specific dependencies and finalizing documentation.
-
-### Tasks
-
-#### Task 7.1: Decouple from Parent Directory
-**Status:** Open  
-**Assignee:** TBD  
-**Effort:** 4 hours
-
-**Description:**
-The application currently depends on files in `../` (e.g., `header.php`, `style.css`). These should be made optional or configurable to allow standalone deployment.
-
-**Acceptance Criteria:**
-- [ ] Identify all `../` includes and references.
-- [ ] Implement checks to see if parent files exist before including.
-- [ ] Provide default local versions or fallbacks for standalone mode.
-- [ ] Add configuration setting to enable/disable parent site integration.
-
----
-
-#### Task 7.2: Final Security Audit
-**Status:** Open  
-**Assignee:** TBD  
-**Effort:** 8 hours
-
-**Description:**
-Perform a comprehensive manual and automated security audit before the 1.0 release.
-
-**Acceptance Criteria:**
-- [ ] Run automated vulnerability scanners (e.g., OWASP ZAP).
-- [ ] Manually verify all input sanitization points.
-- [ ] Confirm no sensitive information is logged in production.
-- [ ] Verify all cookies are properly scoped and secured.
-
----
-
-#### Task 7.3: Prepare Release Notes & Versioning
-**Status:** Open  
-**Assignee:** TBD  
-**Effort:** 2 hours
-
-**Description:**
-Establish a formal versioning scheme and document changes.
-
-**Acceptance Criteria:**
-- [ ] Define semantic versioning policy.
-- [ ] Create `CHANGELOG.md`.
-- [ ] Tag the 1.0.0 release in Git.
-
----
-
 ## Epic 8: GitHub Integration & CI/CD
 
 **Priority:** MEDIUM  
@@ -1068,6 +1066,6 @@ Automate PHPStan analysis on every push.
 
 ---
 
-**Document Version:** 1.1  
-**Last Updated:** 2026-02-15 (Added Release Readiness and GitHub Epics)  
+**Document Version:** 1.2  
+**Last Updated:** 2026-02-15 (Reorganized roadmap, Epic 8 moved to end)  
 **Next Review:** After Epic 1 completion
