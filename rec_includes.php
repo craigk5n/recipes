@@ -4,9 +4,9 @@ $title = 'k5n Recipes';
 
 $LANGUAGE = 'English-US';
 
+include "includes/security.php";
 include "includes/config.php";
 include "includes/pdo_db.php";
-include "includes/security.php";
 include "includes/functions.php";
 include "includes/dbtable.php";
 include "includes/connect.php";

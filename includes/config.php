@@ -80,27 +80,14 @@ $PROGRAM_URL = "http://webcalendar.sourceforge.net/";
 $TROUBLE_URL = "docs/WebCalendar-SysAdmin.html#trouble";
 
 /**
- * Prints a fatal error message to the user along with a link to the
- * Troubleshooting section of the WebCalendar System Administrator's Guide.
+ * Prints a fatal error message to the user.
  *
  * Execution is aborted.
  *
  * @param string $error The error message to display
- *
- * @internal We don't normally put functions in this file.  But, since this
- *           file is included before some of the others, this function either
- *           goes here or we repeat this code in multiple files.
+ * @deprecated Use handleError() in security.php
  */
-function die_miserable_death ( $error )
-{
-global $TROUBLE_URL;
-  echo "<html><head><title>WebCalendar: Fatal Error</title></head>\n" .
-    "<body><h2>WebCalendar Error</h2>\n" .
-    "<p>$error</p>\n<hr />" .
-    "<p><a href=\"$TROUBLE_URL\" target=\"_blank\">" .
-    "Troubleshooting Help</a></p></body></html>\n";
-  exit;
-}
+// die_miserable_death() is now defined in includes/security.php
 
 
 
