@@ -14,7 +14,9 @@
     "cancel": "Cancel",
     "back": "Back",
     "search": "Search",
-    "filter": "Filter"
+    "filter": "Filter",
+    "yes": "Yes",
+    "no": "No"
   },
   
   "recipe": {
