@@ -19,9 +19,6 @@ $assets = [
     // Bootstrap JS
     $vendorDir . '/twbs/bootstrap/dist/js/bootstrap.bundle.min.js' => $pubDir . '/bootstrap.bundle.min.js',
     $vendorDir . '/twbs/bootstrap/dist/js/bootstrap.bundle.min.js.map' => $pubDir . '/bootstrap.bundle.min.js.map',
-    
-    // jQuery
-    $vendorDir . '/components/jquery/jquery.min.js' => $pubDir . '/jquery.min.js',
 ];
 
 $created = 0;

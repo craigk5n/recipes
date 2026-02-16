@@ -463,9 +463,9 @@ foreach ($ingredients as $ingr) {
 </div>
 
 <script>
-$(document).ready(function() {
+document.addEventListener('DOMContentLoaded', function() {
     // --- Fraction / number utilities ---
-    var NICE_FRACTIONS = {
+    const NICE_FRACTIONS = {
         '0.125': '\u215B',   // ⅛
         '0.25':  '\u00BC',   // ¼
         '0.333': '\u2153',   // ⅓
@@ -481,41 +481,41 @@ $(document).ready(function() {
         s = s.trim();
         if (s === '') return null;
         // Unicode fraction characters
-        var unicodeFracs = {'\u00BC':0.25, '\u00BD':0.5, '\u00BE':0.75,
+        const unicodeFracs = {'\u00BC':0.25, '\u00BD':0.5, '\u00BE':0.75,
             '\u2153':1/3, '\u2154':2/3, '\u215B':0.125, '\u215C':0.375,
             '\u215D':0.625, '\u215E':0.875};
-        for (var uf in unicodeFracs) {
+        for (const uf in unicodeFracs) {
             if (s.indexOf(uf) !== -1) {
-                var rest = s.replace(uf, '').trim();
-                var whole = rest ? parseFloat(rest) : 0;
+                const rest = s.replace(uf, '').trim();
+                let whole = rest ? parseFloat(rest) : 0;
                 if (isNaN(whole)) whole = 0;
                 return whole + unicodeFracs[uf];
             }
         }
         // "1 1/2" or "1/2"
-        var mixed = s.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+        const mixed = s.match(/^(\d+)\s+(\d+)\/(\d+)$/);
         if (mixed) return parseInt(mixed[1]) + parseInt(mixed[2]) / parseInt(mixed[3]);
-        var frac = s.match(/^(\d+)\/(\d+)$/);
+        const frac = s.match(/^(\d+)\/(\d+)$/);
         if (frac) return parseInt(frac[1]) / parseInt(frac[2]);
-        var num = parseFloat(s);
+        const num = parseFloat(s);
         return isNaN(num) ? null : num;
     }
 
     function formatNumber(n) {
         if (n === 0) return '0';
-        var whole = Math.floor(n);
-        var frac = n - whole;
+        const whole = Math.floor(n);
+        const frac = n - whole;
         // Round fractional part to 3 decimal places for matching
-        var fracRound = (Math.round(frac * 1000) / 1000).toFixed(3);
-        var nice = NICE_FRACTIONS[fracRound];
+        const fracRound = (Math.round(frac * 1000) / 1000).toFixed(3);
+        let nice = NICE_FRACTIONS[fracRound];
         if (nice) {
             return whole > 0 ? whole + nice : nice;
         }
         // Try rounding to common fractions
         if (frac > 0.01) {
             // Check nearby values
-            var candidates = [0.125, 0.25, 0.333, 0.375, 0.5, 0.625, 0.667, 0.75, 0.875];
-            for (var i = 0; i < candidates.length; i++) {
+            const candidates = [0.125, 0.25, 0.333, 0.375, 0.5, 0.625, 0.667, 0.75, 0.875];
+            for (let i = 0; i < candidates.length; i++) {
                 if (Math.abs(frac - candidates[i]) < 0.03) {
                     nice = NICE_FRACTIONS[candidates[i].toFixed(3)];
                     if (nice) return whole > 0 ? whole + nice : nice;
@@ -524,46 +524,52 @@ $(document).ready(function() {
         }
         // Clean decimal: avoid things like 1.5000000001
         if (whole === n) return whole.toString();
-        var rounded = Math.round(n * 100) / 100;
+        const rounded = Math.round(n * 100) / 100;
         // Remove trailing zeros after decimal
         return rounded.toString().replace(/\.?0+$/, '');
     }
 
     // Regex to find leading numbers in unstructured ingredient text
     // Matches: "3/4", "1 1/2", "12.5", "2", or unicode fractions at the start
-    var NUM_RE = /^((?:\d+\s+)?\d+\/\d+|\d+\.?\d*|[\u00BC\u00BD\u00BE\u2153\u2154\u215B\u215C\u215D\u215E](?:\s*\d+)?|\d+[\u00BC\u00BD\u00BE\u2153\u2154\u215B\u215C\u215D\u215E])/;
+    const NUM_RE = /^((?:\d+\s+)?\d+\/\d+|\d+\.?\d*|[\u00BC\u00BD\u00BE\u2153\u2154\u215B\u215C\u215D\u215E](?:\s*\d+)?|\d+[\u00BC\u00BD\u00BE\u2153\u2154\u215B\u215C\u215D\u215E])/;
 
     function scaleText(origText, scale) {
-        var m = origText.match(NUM_RE);
+        const m = origText.match(NUM_RE);
         if (!m) return origText;
-        var matchStr = m[1];
-        var parsed = parseFraction(matchStr);
+        const matchStr = m[1];
+        const parsed = parseFraction(matchStr);
         if (parsed === null) return origText;
-        var scaled = parsed * scale;
+        const scaled = parsed * scale;
         return formatNumber(scaled) + origText.substring(matchStr.length);
     }
 
     // --- Scale button handler ---
-    $('.scale-btn').on('click', function() {
-        var scale = parseFloat($(this).data('scale'));
-        $('.scale-btn').removeClass('btn-secondary active').addClass('btn-outline-secondary');
-        $(this).removeClass('btn-outline-secondary').addClass('btn-secondary active');
+    document.querySelectorAll('.scale-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const scale = parseFloat(this.dataset.scale);
+            document.querySelectorAll('.scale-btn').forEach(function(b) {
+                b.classList.remove('btn-secondary', 'active');
+                b.classList.add('btn-outline-secondary');
+            });
+            this.classList.remove('btn-outline-secondary');
+            this.classList.add('btn-secondary', 'active');
 
-        $('#ingredientList li').each(function() {
-            var $li = $(this);
-            var origQty = $li.data('orig-qty');
-            var origText = $li.data('orig-text');
+            document.querySelectorAll('#ingredientList li').forEach(function(li) {
+                const origQty = li.dataset.origQty;
+                const origText = li.dataset.origText;
 
-            if (origQty !== undefined && origQty !== '') {
-                // Structured ingredient: scale the qty span
-                var parsed = parseFloat(origQty);
-                if (!isNaN(parsed)) {
-                    $li.find('.ingr-qty').text(formatNumber(parsed * scale));
+                if (origQty !== undefined && origQty !== '') {
+                    // Structured ingredient: scale the qty span
+                    const parsed = parseFloat(origQty);
+                    if (!isNaN(parsed)) {
+                        const qtySpan = li.querySelector('.ingr-qty');
+                        if (qtySpan) qtySpan.textContent = formatNumber(parsed * scale);
+                    }
+                } else if (origText !== undefined) {
+                    // Unstructured: parse and scale leading number in full text
+                    li.innerHTML = scaleText(origText, scale);
                 }
-            } else if (origText !== undefined) {
-                // Unstructured: parse and scale leading number in full text
-                $li.html(scaleText(origText, scale));
-            }
+            });
         });
     });
 });
@@ -581,30 +587,41 @@ $(document).ready(function() {
 </div>
 
 <script>
-$(document).on('click', '.photo-zoom', function() {
-    $('#lightboxImg').attr('src', $(this).data('photo-src'));
-    new bootstrap.Modal($('#photoLightbox')[0]).show();
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.photo-zoom')) {
+        const el = e.target.closest('.photo-zoom');
+        document.getElementById('lightboxImg').src = el.dataset.photoSrc;
+        new bootstrap.Modal(document.getElementById('photoLightbox')).show();
+    }
 });
 
-$('#favBtn').on('click', function() {
-    var btn = $(this);
-    $.post('favorite_handler.php', {
-        csrf_token: btn.data('csrf'),
-        rec_id: btn.data('rec-id')
-    }, function(resp) {
+document.getElementById('favBtn').addEventListener('click', function() {
+    const btn = this;
+    const formData = new FormData();
+    formData.append('csrf_token', btn.dataset.csrf);
+    formData.append('rec_id', btn.dataset.recId);
+
+    fetch('favorite_handler.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(function(resp) {
         if (resp.error) return;
-        var filled = '<path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/>';
-        var outline = '<path d="M2.866 14.85c-.078.444.36.791.746.593l4.39-2.256 4.389 2.256c.386.198.824-.149.746-.592l-.83-4.73 3.522-3.356c.33-.314.16-.888-.282-.95l-4.898-.696L8.465.792a.513.513 0 0 0-.927 0L5.354 5.12l-4.898.696c-.441.062-.612.636-.283.95l3.523 3.356-.83 4.73zm4.905-2.767l-3.686 1.894.694-3.957a.565.565 0 0 0-.163-.505L1.71 6.745l4.052-.576a.525.525 0 0 0 .393-.288L8 2.223l1.847 3.658a.525.525 0 0 0 .393.288l4.052.575-2.906 2.77a.565.565 0 0 0-.163.506l.694 3.957-3.686-1.894a.503.503 0 0 0-.461 0z"/>';
+        const filled = '<path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/>';
+        const outline = '<path d="M2.866 14.85c-.078.444.36.791.746.593l4.39-2.256 4.389 2.256c.386.198.824-.149.746-.592l-.83-4.73 3.522-3.356c.33-.314.16-.888-.282-.95l-4.898-.696L8.465.792a.513.513 0 0 0-.927 0L5.354 5.12l-4.898.696c-.441.062-.612.636-.283.95l3.523 3.356-.83 4.73zm4.905-2.767l-3.686 1.894.694-3.957a.565.565 0 0 0-.163-.505L1.71 6.745l4.052-.576a.525.525 0 0 0 .393-.288L8 2.223l1.847 3.658a.525.525 0 0 0 .393.288l4.052.575-2.906 2.77a.565.565 0 0 0-.163.506l.694 3.957-3.686-1.894a.503.503 0 0 0-.461 0z"/>';
         if (resp.favorite) {
-            btn.removeClass('btn-outline-light').addClass('btn-warning');
-            btn.attr('title', 'Remove from favorites');
-            btn.find('svg').html(filled);
+            btn.classList.remove('btn-outline-light');
+            btn.classList.add('btn-warning');
+            btn.title = 'Remove from favorites';
+            btn.querySelector('svg').innerHTML = filled;
         } else {
-            btn.removeClass('btn-warning').addClass('btn-outline-light');
-            btn.attr('title', 'Add to favorites');
-            btn.find('svg').html(outline);
+            btn.classList.remove('btn-warning');
+            btn.classList.add('btn-outline-light');
+            btn.title = 'Add to favorites';
+            btn.querySelector('svg').innerHTML = outline;
         }
-    }, 'json');
+    });
 });
 </script>
 

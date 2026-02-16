@@ -186,21 +186,27 @@ $current_page = basename($_SERVER['PHP_SELF']);
 </form>
 
 <script>
-$(document).ready(function() {
-    $('#btn-add-ingredient').on('click', function() {
-        var row = '<div class="row mb-2 ingredient-row">' +
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('btn-add-ingredient').addEventListener('click', function() {
+        const container = document.getElementById('ingredients-container');
+        const row = document.createElement('div');
+        row.className = 'row mb-2 ingredient-row';
+        row.innerHTML =
             '<div class="col-2"><input type="text" class="form-control" name="qty[]" placeholder="Qty"></div>' +
             '<div class="col-2"><input type="text" class="form-control" name="unit[]" placeholder="Unit"></div>' +
             '<div class="col-3"><input type="text" class="form-control" name="ingredient[]" placeholder="Ingredient"></div>' +
             '<div class="col-3"><input type="text" class="form-control" name="prep[]" placeholder="Prep"></div>' +
-            '<div class="col-2"><button type="button" class="btn btn-danger btn-remove-ingredient">Remove</button></div>' +
-            '</div>';
-        $('#ingredients-container').append(row);
+            '<div class="col-2"><button type="button" class="btn btn-danger btn-remove-ingredient">Remove</button></div>';
+        container.appendChild(row);
     });
 
-    $(document).on('click', '.btn-remove-ingredient', function() {
-        if ($('.ingredient-row').length > 1) {
-            $(this).closest('.ingredient-row').remove();
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.btn-remove-ingredient')) {
+            const btn = e.target.closest('.btn-remove-ingredient');
+            const rows = document.querySelectorAll('.ingredient-row');
+            if (rows.length > 1) {
+                btn.closest('.ingredient-row').remove();
+            }
         }
     });
 });

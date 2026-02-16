@@ -10,8 +10,7 @@
     ],
     "require": {
         "php": ">=7.4",
-        "twbs/bootstrap": "^5.3",
-        "components/jquery": "^3.6"
+        "twbs/bootstrap": "^5.3"
     },
     "require-dev": {
         "phpunit/phpunit": "^9.0|^10.0",

@@ -215,78 +215,86 @@ foreach ($recipes as $row) {
 </table>
 
 <script>
-$(document).ready(function() {
-    var grid = $('#recipeGrid');
-    var table = $('#recipeTable');
-    var viewMode = 'grid';
+document.addEventListener('DOMContentLoaded', function() {
+    const grid = document.getElementById('recipeGrid');
+    const table = document.getElementById('recipeTable');
+    let viewMode = 'grid';
 
     function updateRecipeCount() {
-        var selector = viewMode === 'grid' ? '.recipe-card:visible' : '.recipe-row:visible';
-        var totalSelector = viewMode === 'grid' ? '.recipe-card' : '.recipe-row';
-        var visible = $(selector).length;
-        var total = $(totalSelector).length;
+        const selector = viewMode === 'grid' ? '.recipe-card' : '.recipe-row';
+        const totalSelector = viewMode === 'grid' ? '.recipe-card' : '.recipe-row';
+        const allItems = document.querySelectorAll(totalSelector);
+        const visibleItems = document.querySelectorAll(selector + ':not([style*="display: none"])');
+        const visible = visibleItems.length;
+        const total = allItems.length;
+        const countEl = document.getElementById('recipeCount');
         if (visible === total) {
-            $('#recipeCount').text(total + ' recipes');
+            countEl.textContent = total + ' recipes';
         } else {
-            $('#recipeCount').text('Showing ' + visible + ' of ' + total + ' recipes');
+            countEl.textContent = 'Showing ' + visible + ' of ' + total + ' recipes';
         }
     }
 
     function applyFilter() {
-        var value = $('#searchInput').val().toLowerCase();
+        const value = document.getElementById('searchInput').value.toLowerCase();
         if (viewMode === 'grid') {
-            grid.find('.recipe-card').each(function() {
-                $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+            grid.querySelectorAll('.recipe-card').forEach(function(card) {
+                const isMatch = card.textContent.toLowerCase().indexOf(value) > -1;
+                card.style.display = isMatch ? '' : 'none';
             });
         } else {
-            table.find('.recipe-row').each(function() {
-                $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+            table.querySelectorAll('.recipe-row').forEach(function(row) {
+                const isMatch = row.textContent.toLowerCase().indexOf(value) > -1;
+                row.style.display = isMatch ? '' : 'none';
             });
         }
         updateRecipeCount();
     }
 
     function applySort() {
-        var sortVal = $('#sortSelect').val();
+        const sortVal = document.getElementById('sortSelect').value;
 
         // Sort grid cards
-        var cards = grid.find('.recipe-card').detach().toArray();
-        cards.sort(makeSorter(sortVal, true));
-        grid.append(cards);
+        const cards = Array.from(grid.querySelectorAll('.recipe-card'));
+        cards.sort(makeSorter(sortVal));
+        cards.forEach(function(card) {
+            grid.appendChild(card);
+        });
 
         // Sort table rows
-        var tbody = table.find('tbody');
-        var rows = tbody.find('.recipe-row').detach().toArray();
-        rows.sort(makeSorter(sortVal, false));
-        tbody.append(rows);
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('.recipe-row'));
+        rows.sort(makeSorter(sortVal));
+        rows.forEach(function(row) {
+            tbody.appendChild(row);
+        });
 
         updateRecipeCount();
     }
 
-    function makeSorter(sortVal, isJquery) {
+    function makeSorter(sortVal) {
         return function(a, b) {
-            var $a = $(a), $b = $(b);
-            var favA = parseInt($a.data('fav')) || 0;
-            var favB = parseInt($b.data('fav')) || 0;
+            const favA = parseInt(a.dataset.fav) || 0;
+            const favB = parseInt(b.dataset.fav) || 0;
 
             if (sortVal === 'fav-updated') {
                 if (favA !== favB) return favB - favA;
-                return ($b.data('updated') || '').localeCompare($a.data('updated') || '');
+                return (b.dataset.updated || '').localeCompare(a.dataset.updated || '');
             }
 
             switch (sortVal) {
                 case 'title-asc':
-                    return ($a.data('title') || '').localeCompare($b.data('title') || '');
+                    return (a.dataset.title || '').localeCompare(b.dataset.title || '');
                 case 'title-desc':
-                    return ($b.data('title') || '').localeCompare($a.data('title') || '');
+                    return (b.dataset.title || '').localeCompare(a.dataset.title || '');
                 case 'updated-desc':
-                    return ($b.data('updated') || '').localeCompare($a.data('updated') || '');
+                    return (b.dataset.updated || '').localeCompare(a.dataset.updated || '');
                 case 'updated-asc':
-                    return ($a.data('updated') || '').localeCompare($b.data('updated') || '');
+                    return (a.dataset.updated || '').localeCompare(b.dataset.updated || '');
                 case 'added-desc':
-                    return ($b.data('added') || '').localeCompare($a.data('added') || '');
+                    return (b.dataset.added || '').localeCompare(a.dataset.added || '');
                 case 'added-asc':
-                    return ($a.data('added') || '').localeCompare($b.data('added') || '');
+                    return (a.dataset.added || '').localeCompare(b.dataset.added || '');
                 default:
                     return 0;
             }
@@ -294,28 +302,28 @@ $(document).ready(function() {
     }
 
     // View toggle
-    $('#btnGridView').on('click', function() {
+    document.getElementById('btnGridView').addEventListener('click', function() {
         if (viewMode === 'grid') return;
         viewMode = 'grid';
-        table.hide();
-        grid.show();
-        $('#btnGridView').addClass('active');
-        $('#btnTableView').removeClass('active');
+        table.style.display = 'none';
+        grid.style.display = '';
+        document.getElementById('btnGridView').classList.add('active');
+        document.getElementById('btnTableView').classList.remove('active');
         applyFilter();
     });
 
-    $('#btnTableView').on('click', function() {
+    document.getElementById('btnTableView').addEventListener('click', function() {
         if (viewMode === 'table') return;
         viewMode = 'table';
-        grid.hide();
-        table.show();
-        $('#btnTableView').addClass('active');
-        $('#btnGridView').removeClass('active');
+        grid.style.display = 'none';
+        table.style.display = '';
+        document.getElementById('btnTableView').classList.add('active');
+        document.getElementById('btnGridView').classList.remove('active');
         applyFilter();
     });
 
-    $('#searchInput').on('keyup', applyFilter);
-    $('#sortSelect').on('change', function() {
+    document.getElementById('searchInput').addEventListener('keyup', applyFilter);
+    document.getElementById('sortSelect').addEventListener('change', function() {
         applySort();
         applyFilter();
     });
