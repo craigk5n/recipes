@@ -18,7 +18,6 @@ The following frontend libraries are managed via Composer:
 | Library | Composer Package | Version | Files |
 |---------|-----------------|---------|-------|
 | Bootstrap 5 | `twbs/bootstrap` | ^5.3 | bootstrap.min.css, bootstrap.bundle.min.js |
-| jQuery | `components/jquery` | ^3.6 | jquery.min.js |
 
 ## Installation
 
@@ -56,8 +55,7 @@ Dependencies are defined in `composer.json`:
 ```json
 "require": {
     "php": ">=7.4",
-    "twbs/bootstrap": "^5.3",
-    "components/jquery": "^3.6"
+    "twbs/bootstrap": "^5.3"
 }
 ```
 
@@ -92,11 +90,9 @@ recipes/
 │   ├── bootstrap.min.css  # Copied from vendor/twbs/bootstrap/
 │   ├── bootstrap.bundle.min.js
 │   ├── bootstrap.min.css.map
-│   ├── bootstrap.bundle.min.js.map
-│   └── jquery.min.js      # Copied from vendor/components/jquery/
+│   └── bootstrap.bundle.min.js.map
 └── vendor/                 # Composer packages (not served directly)
-    ├── twbs/bootstrap/dist/...
-    └── components/jquery/...
+    └── twbs/bootstrap/dist/...
 ```
 
 ## Adding New Dependencies
@@ -152,7 +148,7 @@ composer install-assets
 To update to latest compatible versions:
 
 ```bash
-composer update twbs/bootstrap components/jquery
+composer update twbs/bootstrap
 ```
 
 This updates both the composer package AND copies the new assets to `pub/`.

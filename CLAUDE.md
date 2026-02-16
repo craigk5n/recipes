@@ -33,14 +33,14 @@ The app runs directly on a web server (Apache) with PHP. Access it at `http://<s
 **Page structure:**
 - `index.php` — lists all recipes in a searchable Bootstrap table
 - `view.php` — displays a single recipe with ingredients, instructions, edit/delete buttons
-- `edit.php` — add/edit recipe form with dynamic ingredient rows (jQuery)
+- `edit.php` — add/edit recipe form with dynamic ingredient rows (vanilla JavaScript)
 - `edit_handler.php` — processes form submissions with CSRF validation and parameterized queries
 - `delete_handler.php` — handles recipe deletion with CSRF validation
 - `trailer.php` — closes card/container divs, includes parent site trailer
 
-**Frontend:** Bootstrap 5.3.0 CSS/JS and jQuery 3.6.0 served from local `pub/` directory. Navigation via Bootstrap navbar (brand: "Recipes", items: Home, Add Recipe).
+**Frontend:** Bootstrap 5.3.0 CSS/JS served from local `pub/` directory. All JavaScript uses vanilla JS (no jQuery). Navigation via Bootstrap navbar (brand: "Recipes", items: Home, Add Recipe).
 
-**Frontend Dependencies:** Managed via Composer packages (`twbs/bootstrap`, `components/jquery`) and copied to `pub/` via post-install hook. Run `composer install-assets` to manually update. See `docs/FRONTEND_ASSETS.md` for details.
+**Frontend Dependencies:** Managed via Composer package (`twbs/bootstrap`) and copied to `pub/` via post-install hook. Run `composer install-assets` to manually update. See `docs/FRONTEND_ASSETS.md` for details.
 
 **Shared includes (`includes/`):**
 - `config.php` — loads settings, defines language arrays, sets up `die_miserable_death()` error handler
@@ -50,7 +50,7 @@ The app runs directly on a web server (Apache) with PHP. Access it at `http://<s
 - `dbtable.php` — HTML table generation utilities for database-backed forms
 - `connect.php` — establishes PDO database connection via `BookLogDB::connect()`
 - `styles.php` — Bootstrap CSS link + custom styles
-- `js.php` — jQuery + Bootstrap JS script references
+- `js.php` — Bootstrap JS script references
 
 **Modern source (`src/`):**
 - `I18n/Translator.php` — Modern PHP 8.1+ i18n system with JSON translations
@@ -58,7 +58,6 @@ The app runs directly on a web server (Apache) with PHP. Access it at `http://<s
 **Static assets (`pub/`):**
 - `bootstrap.min.css` — Bootstrap 5.3.0
 - `bootstrap.bundle.min.js` — Bootstrap 5.3.0 JS bundle
-- `jquery.min.js` — jQuery 3.6.0
 
 **Parent site integration:** Pages include `../header.php`, `../trailer.php`, and `../style.css` from a parent directory (the broader intranet site).
 

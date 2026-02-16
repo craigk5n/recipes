@@ -1,12 +1,16 @@
 {
     "name": "k5n/recipes",
     "description": "k5n Recipes - PHP Recipe Management Application",
+    "homepage": "https://k5n.us/recipes/",
     "type": "project",
     "license": "MIT",
     "authors": [
-        {
-            "name": "k5n Team"
-        }
+      {
+        "name": "Craig Knudsen",
+        "email": "craig@k5n.us",
+        "homepage": "https://k5n.us",
+        "role": "Project Maintainer / Developer"
+      }
     ],
     "require": {
         "php": ">=7.4",
