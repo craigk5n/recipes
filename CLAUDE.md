@@ -18,6 +18,13 @@ The app runs directly on a web server (Apache) with PHP. Access it at `http://<s
 
 **Security:** `includes/security.php` provides `generateCsrfToken()`, `validateCsrfToken()`, `sanitizeString()`, `sanitizeInt()`. All forms include CSRF tokens. All user input is sanitized.
 
+**i18n (Internationalization):** Modern PHP 8.1+ translation system in `src/I18n/Translator.php` with:
+- JSON-based translation files in `translations/`
+- Type-safe Locale enum for supported languages
+- Automatic browser language detection
+- Fallback chain for missing translations
+- ICU MessageFormat support for pluralization
+
 **Database tables:**
 - `rec_recipe` — recipe metadata (id, title, last_updated, source)
 - `rec_ingr` — ingredients (linked to recipe by rec_id, ordered by rec_ingr_num)
@@ -33,16 +40,20 @@ The app runs directly on a web server (Apache) with PHP. Access it at `http://<s
 
 **Frontend:** Bootstrap 5.3.0 CSS/JS and jQuery 3.6.0 served from local `pub/` directory. Navigation via Bootstrap navbar (brand: "Recipes", items: Home, Add Recipe).
 
+**Frontend Dependencies:** Managed via Composer packages (`twbs/bootstrap`, `components/jquery`) and copied to `pub/` via post-install hook. Run `composer install-assets` to manually update. See `docs/FRONTEND_ASSETS.md` for details.
+
 **Shared includes (`includes/`):**
 - `config.php` — loads settings, defines language arrays, sets up `die_miserable_death()` error handler
 - `pdo_db.php` — PDO database abstraction (`BookLogDB` class + legacy `dbi_*` wrappers)
 - `security.php` — CSRF tokens, input sanitization
-- `functions.php` (~4,800 lines) — core utilities inherited from WebCalendar (date formatting, input handling)
+- `functions.php` — minimal utility functions (refactored from 4,800 lines of WebCalendar code)
 - `dbtable.php` — HTML table generation utilities for database-backed forms
 - `connect.php` — establishes PDO database connection via `BookLogDB::connect()`
 - `styles.php` — Bootstrap CSS link + custom styles
 - `js.php` — jQuery + Bootstrap JS script references
-- `translate.php` — i18n system using key-value files in `translations/`
+
+**Modern source (`src/`):**
+- `I18n/Translator.php` — Modern PHP 8.1+ i18n system with JSON translations
 
 **Static assets (`pub/`):**
 - `bootstrap.min.css` — Bootstrap 5.3.0
@@ -53,5 +64,4 @@ The app runs directly on a web server (Apache) with PHP. Access it at `http://<s
 
 ## Known Issues
 
-- `functions.php` contains substantial WebCalendar code (calendar views, event handling) that is unused by the recipes app
 - `includes/dbi4php.php` is retained but no longer included; `pdo_db.php` replaces it

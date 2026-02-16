@@ -1,0 +1,102 @@
+{
+  "app": {
+    "name": "k5n Recipes",
+    "title": "Recipe Manager",
+    "version": "Version 2.0"
+  },
+  
+  "navigation": {
+    "home": "Home",
+    "add_recipe": "Add Recipe",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "cancel": "Cancel",
+    "back": "Back",
+    "search": "Search",
+    "filter": "Filter"
+  },
+  
+  "recipe": {
+    "title": "Title",
+    "description": "Description",
+    "source": "Source",
+    "yield": "Yield",
+    "prep_time": "Prep Time",
+    "cook_time": "Cook Time",
+    "total_time": "Total Time",
+    "ingredients": "Ingredients",
+    "instructions": "Instructions",
+    "notes": "Notes",
+    "tags": "Tags",
+    "category": "Category",
+    "last_updated": "Last Updated",
+    "created": "Created",
+    "import": "Import Recipe",
+    "import_from_url": "Import from URL"
+  },
+  
+  "ingredient": {
+    "name": "Ingredient",
+    "amount": "Amount",
+    "unit": "Unit",
+    "add": "Add Ingredient",
+    "remove": "Remove Ingredient",
+    "placeholder": "e.g., 2 cups flour"
+  },
+  
+  "messages": {
+    "confirm_delete": "Are you sure you want to delete this recipe?",
+    "recipe_saved": "Recipe saved successfully!",
+    "recipe_deleted": "Recipe deleted successfully!",
+    "error_saving": "Error saving recipe",
+    "error_deleting": "Error deleting recipe",
+    "no_recipes": "No recipes found",
+    "loading": "Loading..."
+  },
+  
+  "errors": {
+    "title_required": "Title is required",
+    "invalid_url": "Invalid URL",
+    "import_failed": "Failed to import recipe",
+    "csrf_invalid": "Invalid security token",
+    "db_error": "Database error",
+    "not_found": "Recipe not found"
+  },
+  
+  "units": {
+    "cup": "cup",
+    "cups": "cups",
+    "tbsp": "tablespoon",
+    "tsp": "teaspoon",
+    "oz": "ounce",
+    "lb": "pound",
+    "g": "gram",
+    "kg": "kilogram",
+    "ml": "milliliter",
+    "l": "liter",
+    "pinch": "pinch",
+    "dash": "dash",
+    "piece": "piece",
+    "pieces": "pieces"
+  },
+  
+  "time": {
+    "minute": "minute",
+    "minutes": "minutes",
+    "hour": "hour",
+    "hours": "hours",
+    "day": "day",
+    "days": "days"
+  },
+  
+  "phrases": {
+    "serves": "Serves {count}",
+    "prep_time_label": "Prep: {time}",
+    "cook_time_label": "Cook: {time}",
+    "total_time_label": "Total: {time}",
+    "ingredient_count": "{count} ingredient",
+    "ingredients_count": "{count} ingredients",
+    "added_by": "Added by {name} on {date}"
+  }
+}

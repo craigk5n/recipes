@@ -5,6 +5,11 @@ includes/settings.php
 # Composer dependencies
 vendor/
 
+# Frontend assets (copied from vendor/ by composer install)
+# The pub directory is kept, but files inside are auto-generated
+pub/*
+!pub/.gitkeep
+
 # Logs
 logs/
 

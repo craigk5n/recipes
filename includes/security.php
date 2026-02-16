@@ -4,8 +4,9 @@
  */
 
 // Configure secure session settings before starting session
+$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['SERVER_PORT'] ?? 80) == 443;
 ini_set('session.cookie_httponly', '1');
-ini_set('session.cookie_secure', '1');
+ini_set('session.cookie_secure', $isHttps ? '1' : '0');
 ini_set('session.cookie_samesite', 'Strict');
 ini_set('session.gc_maxlifetime', '1800'); // 30 minutes
 
@@ -23,10 +24,11 @@ function destroySession() {
     
     // Delete session cookie
     if (isset($_COOKIE[session_name()])) {
+        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['SERVER_PORT'] ?? 80) == 443;
         setcookie(session_name(), '', [
             'expires' => time() - 3600,
             'path' => '/',
-            'secure' => true,
+            'secure' => $isHttps,
             'httponly' => true,
             'samesite' => 'Strict'
         ]);
@@ -89,7 +91,7 @@ function setSecurityHeaders() {
     header("X-Content-Type-Options: nosniff");
     header("X-XSS-Protection: 1; mode=block");
     header("Referrer-Policy: strict-origin-when-cross-origin");
-    header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'");
+    header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http: https:; font-src 'self'");
 }
 
 /**
@@ -132,6 +134,9 @@ function handleError($error, $status = 500) {
 
     // Write to log file
     @file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
+
+    // Also log to system error log
+    error_log("Recipe App Error: " . $error);
 
     // Set HTTP status code
     http_response_code($status);
