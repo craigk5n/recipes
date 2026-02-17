@@ -410,6 +410,7 @@ foreach ($ingredients as $ingr) {
     </div>
   </form>
 </div>
+<?php } ?>
 
 <!-- Notes Section -->
 <h5 class="mt-4"><?php echo t('recipe.notes'); ?></h5>
