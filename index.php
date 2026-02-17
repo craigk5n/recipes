@@ -2,7 +2,13 @@
 
 include "rec_includes.php";
 
-$pagetitle = $title . ' ' . translate("Home");
+use function Recipes\I18n\t;
+use function Recipes\Auth\getAuthManager;
+use Recipes\Database\Database;
+use Recipes\Recipe\Category;
+
+$auth = getAuthManager();
+$pagetitle = $title . ' ' . t('navigation.home');
 
 ?>
 <html>
@@ -28,14 +34,38 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <div class="collapse navbar-collapse" id="recipesNavbar">
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         <li class="nav-item">
-          <a class="nav-link <?php echo $current_page == 'index.php' ? 'active' : ''; ?>" href="index.php">Home</a>
+          <a class="nav-link <?php echo $current_page == 'index.php' ? 'active' : ''; ?>" href="index.php"><?php echo t('navigation.home'); ?></a>
+        </li>
+        <?php if ($auth->can('edit')) { ?>
+        <li class="nav-item">
+          <a class="nav-link <?php echo $current_page == 'edit.php' ? 'active' : ''; ?>" href="edit.php"><?php echo t('navigation.add_recipe'); ?></a>
         </li>
         <li class="nav-item">
-          <a class="nav-link <?php echo $current_page == 'edit.php' ? 'active' : ''; ?>" href="edit.php">Add Recipe</a>
+          <a class="nav-link" href="import.php"><?php echo t('recipe.import'); ?></a>
         </li>
-        <li class="nav-item">
-          <a class="nav-link" href="import.php">Import Recipe</a>
-        </li>
+        <?php } ?>
+      </ul>
+      <ul class="navbar-nav ms-auto">
+        <?php if ($auth->getMode() === 'pin') { ?>
+          <?php if ($auth->can('edit')) { ?>
+            <li class="nav-item"><a class="nav-link" href="auth_handler.php?action=logout" title="Lock">🔓</a></li>
+          <?php } else { ?>
+            <li class="nav-item"><a class="nav-link" href="login.php" title="Unlock">🔒</a></li>
+          <?php } ?>
+        <?php } elseif ($auth->getMode() === 'user') { ?>
+          <?php if ($auth->can('edit')) { ?>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <?php echo htmlspecialchars($auth->getCurrentUser()['username']); ?>
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                <li><a class="dropdown-menu" href="auth_handler.php?action=logout">Logout</a></li>
+              </ul>
+            </li>
+          <?php } else { ?>
+            <li class="nav-item"><a class="nav-link" href="login.php">Login</a></li>
+          <?php } ?>
+        <?php } ?>
       </ul>
     </div>
   </div>
@@ -45,13 +75,21 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
 <div class="card">
 <div class="card-header bg-primary text-white">
-<h1 class="h4 mb-0">Recipes</h1>
+<h1 class="h4 mb-0"><?php echo t('app.name'); ?></h1>
 </div>
 <div class="card-body">
 
 <div class="row mb-3 g-2 align-items-center">
   <div class="col">
     <input type="text" id="searchInput" class="form-control" placeholder="Filter recipes...">
+  </div>
+  <div class="col-auto">
+    <select id="categoryFilter" class="form-select">
+      <option value=""><?php echo t('recipe.category'); ?>: All</option>
+      <?php foreach (Category::cases() as $cat) { ?>
+        <option value="<?php echo $cat->value; ?>"><?php echo $cat->label(); ?></option>
+      <?php } ?>
+    </select>
   </div>
   <div class="col-auto">
     <select id="sortSelect" class="form-select">
@@ -82,14 +120,14 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
 <?php
 
-$res = BookLogDB::query(
-  "SELECT r.rec_id, r.rec_title, r.rec_last_updated, r.rec_source, p.photo_id, r.rec_date_added, r.rec_favorite " .
+$res = Database::query(
+  "SELECT r.rec_id, r.rec_title, r.rec_last_updated, r.rec_source, p.photo_id, r.rec_date_added, r.rec_favorite, r.rec_category " .
   "FROM rec_recipe r " .
   "LEFT JOIN rec_photo p ON r.rec_id = p.rec_id AND p.is_primary = 1 " .
   "ORDER BY r.rec_favorite DESC, r.rec_last_updated DESC"
 );
 if ( ! $res ) {
-  echo "Database error: " . BookLogDB::error();
+  echo "Database error: " . Database::error();
   exit;
 }
 
@@ -103,10 +141,10 @@ if ( ! $res ) {
 <?php
 
 $recipes = [];
-while ( $row = BookLogDB::fetchRow($res) ) {
+while ( $row = Database::fetchRow($res) ) {
   $recipes[] = $row;
 }
-BookLogDB::freeResult($res);
+Database::freeResult($res);
 
 foreach ($recipes as $row) {
   $recId = htmlspecialchars($row[0], ENT_QUOTES, 'UTF-8');
@@ -120,6 +158,7 @@ foreach ($recipes as $row) {
   }
   $photoId = $row[4] ?? null;
   $isFav = $row[6] ? 1 : 0;
+  $recCategory = $row[7] ?? '';
 ?>
   <div class="col recipe-card"
        data-title="<?php echo $recTitle; ?>"
@@ -129,6 +168,7 @@ foreach ($recipes as $row) {
        data-id="<?php echo $recId; ?>"
        data-source="<?php echo $recSource; ?>"
        data-photo="<?php echo $photoId ? (int)$photoId : ''; ?>"
+       data-category="<?php echo htmlspecialchars($recCategory, ENT_QUOTES, 'UTF-8'); ?>"
        data-date="<?php echo $recDate; ?>">
     <div class="card h-100">
       <?php if ($photoId) { ?>
@@ -190,12 +230,14 @@ foreach ($recipes as $row) {
   }
   $photoId = $row[4] ?? null;
   $isFav = $row[6] ? 1 : 0;
+  $recCategory = $row[7] ?? '';
 ?>
 <tr class="recipe-row"
     data-title="<?php echo $recTitle; ?>"
     data-updated="<?php echo htmlspecialchars($row[2] ?? '0000-00-00', ENT_QUOTES, 'UTF-8'); ?>"
     data-added="<?php echo htmlspecialchars($row[5] ?? '0000-00-00', ENT_QUOTES, 'UTF-8'); ?>"
-    data-fav="<?php echo $isFav; ?>">
+    data-fav="<?php echo $isFav; ?>"
+    data-category="<?php echo htmlspecialchars($recCategory, ENT_QUOTES, 'UTF-8'); ?>">
   <td class="align-middle p-1">
     <?php if ($photoId) { ?>
       <a href="view.php?id=<?php echo $recId; ?>">
@@ -236,16 +278,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function applyFilter() {
-        const value = document.getElementById('searchInput').value.toLowerCase();
+        const textValue = document.getElementById('searchInput').value.toLowerCase();
+        const catValue = document.getElementById('categoryFilter').value;
+
         if (viewMode === 'grid') {
             grid.querySelectorAll('.recipe-card').forEach(function(card) {
-                const isMatch = card.textContent.toLowerCase().indexOf(value) > -1;
-                card.style.display = isMatch ? '' : 'none';
+                const matchesText = card.textContent.toLowerCase().indexOf(textValue) > -1;
+                const matchesCat = catValue === '' || card.dataset.category === catValue;
+                card.style.display = (matchesText && matchesCat) ? '' : 'none';
             });
         } else {
             table.querySelectorAll('.recipe-row').forEach(function(row) {
-                const isMatch = row.textContent.toLowerCase().indexOf(value) > -1;
-                row.style.display = isMatch ? '' : 'none';
+                const matchesText = row.textContent.toLowerCase().indexOf(textValue) > -1;
+                const matchesCat = catValue === '' || row.dataset.category === catValue;
+                row.style.display = (matchesText && matchesCat) ? '' : 'none';
             });
         }
         updateRecipeCount();
@@ -323,6 +369,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     document.getElementById('searchInput').addEventListener('keyup', applyFilter);
+    document.getElementById('categoryFilter').addEventListener('change', applyFilter);
     document.getElementById('sortSelect').addEventListener('change', function() {
         applySort();
         applyFilter();

@@ -2,6 +2,12 @@
 
 include "rec_includes.php";
 
+use function Recipes\I18n\t;
+use function Recipes\Auth\getAuthManager;
+use Recipes\Database\Database;
+use Recipes\Recipe\Category;
+
+$auth = getAuthManager();
 $id = sanitizeInt($_GET['id'] ?? 0);
 if (empty($id)) {
   header("Location: index.php");
@@ -9,11 +15,11 @@ if (empty($id)) {
 }
 
 // Load recipe
-$res = BookLogDB::query("SELECT rec_id, rec_title, rec_last_updated, rec_source, rec_url, rec_date_added, rec_favorite FROM rec_recipe WHERE rec_id = ?", [$id]);
+$res = Database::query("SELECT rec_id, rec_title, rec_last_updated, rec_source, rec_url, rec_date_added, rec_favorite, rec_category FROM rec_recipe WHERE rec_id = ?", [$id]);
 if ( ! $res ) {
-  die_miserable_death ( "Db error: " . BookLogDB::error() );
+  die_miserable_death ( "Db error: " . Database::error() );
 }
-$row = BookLogDB::fetchRow($res);
+$row = Database::fetchRow($res);
 if (!$row) {
   header("Location: index.php");
   exit;
@@ -24,17 +30,18 @@ $source = $row[3];
 $recUrl = $row[4];
 $dateAdded = $row[5];
 $isFavorite = $row[6] ? true : false;
-BookLogDB::freeResult($res);
+$recCategory = $row[7] ?? '';
+Database::freeResult($res);
 
 // Load photos
 $photos = [];
 $primaryPhoto = null;
-$res = BookLogDB::query(
+$res = Database::query(
     "SELECT photo_id, original_name, is_primary, created_at FROM rec_photo WHERE rec_id = ? ORDER BY is_primary DESC, created_at ASC",
     [$id]
 );
 if ($res) {
-    while ($row = BookLogDB::fetchRow($res)) {
+    while ($row = Database::fetchRow($res)) {
         $photo = [
             'id' => $row[0],
             'original_name' => $row[1],
@@ -46,31 +53,31 @@ if ($res) {
             $primaryPhoto = $photo;
         }
     }
-    BookLogDB::freeResult($res);
+    Database::freeResult($res);
 }
 
 // Load notes
 $notes = [];
-$res = BookLogDB::query(
+$res = Database::query(
     "SELECT note_id, note_text, created_at FROM rec_note WHERE rec_id = ? ORDER BY created_at DESC",
     [$id]
 );
 if ($res) {
-    while ($row = BookLogDB::fetchRow($res)) {
+    while ($row = Database::fetchRow($res)) {
         $notes[] = [
             'id' => $row[0],
             'text' => $row[1],
             'created_at' => $row[2],
         ];
     }
-    BookLogDB::freeResult($res);
+    Database::freeResult($res);
 }
 
 // Load ingredients
 $ingredients = [];
-$res = BookLogDB::query("SELECT rec_ingr_num, rec_quantity, rec_quantity_type, rec_name, rec_prep FROM rec_ingr WHERE rec_id = ? ORDER BY rec_ingr_num", [$id]);
+$res = Database::query("SELECT rec_ingr_num, rec_quantity, rec_quantity_type, rec_name, rec_prep FROM rec_ingr WHERE rec_id = ? ORDER BY rec_ingr_num", [$id]);
 if ($res) {
-    while ($row = BookLogDB::fetchRow($res)) {
+    while ($row = Database::fetchRow($res)) {
         $ingredients[] = [
             'qty'  => $row[1] ?? '',
             'unit' => $row[2] ?? '',
@@ -78,16 +85,16 @@ if ($res) {
             'prep' => $row[4] ?? '',
         ];
     }
-    BookLogDB::freeResult($res);
+    Database::freeResult($res);
 }
 
 // Load instructions
 $instructionsText = '';
-$res = BookLogDB::query("SELECT rec_instructions FROM rec_instructions WHERE rec_id = ?", [$id]);
-if ($res && ($row = BookLogDB::fetchRow($res))) {
+$res = Database::query("SELECT rec_instructions FROM rec_instructions WHERE rec_id = ?", [$id]);
+if ($res && ($row = Database::fetchRow($res))) {
     $instructionsText = $row[0];
 }
-if ($res) BookLogDB::freeResult($res);
+if ($res) Database::freeResult($res);
 
 $pagetitle = 'Recipe: ' . htmlspecialchars($recTitle, ENT_QUOTES, 'UTF-8');
 
@@ -170,14 +177,38 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <div class="collapse navbar-collapse" id="recipesNavbar">
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         <li class="nav-item">
-          <a class="nav-link" href="index.php">Home</a>
+          <a class="nav-link" href="index.php"><?php echo t('navigation.home'); ?></a>
+        </li>
+        <?php if ($auth->can('edit')) { ?>
+        <li class="nav-item">
+          <a class="nav-link" href="edit.php"><?php echo t('navigation.add_recipe'); ?></a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="edit.php">Add Recipe</a>
+          <a class="nav-link" href="import.php"><?php echo t('recipe.import'); ?></a>
         </li>
-        <li class="nav-item">
-          <a class="nav-link" href="import.php">Import Recipe</a>
-        </li>
+        <?php } ?>
+      </ul>
+      <ul class="navbar-nav ms-auto">
+        <?php if ($auth->getMode() === 'pin') { ?>
+          <?php if ($auth->can('edit')) { ?>
+            <li class="nav-item"><a class="nav-link" href="auth_handler.php?action=logout" title="Lock">🔓</a></li>
+          <?php } else { ?>
+            <li class="nav-item"><a class="nav-link" href="login.php" title="Unlock">🔒</a></li>
+          <?php } ?>
+        <?php } elseif ($auth->getMode() === 'user') { ?>
+          <?php if ($auth->can('edit')) { ?>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <?php echo htmlspecialchars($auth->getCurrentUser()['username']); ?>
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                <li><a class="dropdown-menu" href="auth_handler.php?action=logout">Logout</a></li>
+              </ul>
+            </li>
+          <?php } else { ?>
+            <li class="nav-item"><a class="nav-link" href="login.php">Login</a></li>
+          <?php } ?>
+        <?php } ?>
       </ul>
     </div>
   </div>
@@ -202,6 +233,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <path d="M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2zM4 3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2H4zm1 10a1 1 0 0 1-1-1v-4h8v4a1 1 0 0 1-1 1z"/>
   </svg>
 </button>
+<?php if ($auth->can('edit', (int)$id)) { ?>
 <button type="button" id="favBtn" class="btn btn-sm <?php echo $isFavorite ? 'btn-warning' : 'btn-outline-light'; ?>"
         data-rec-id="<?php echo (int)$id; ?>"
         data-csrf="<?php echo generateCsrfToken(); ?>"
@@ -214,6 +246,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <?php } ?>
   </svg>
 </button>
+<?php } ?>
 </div>
 </div>
 <div class="card-body">
@@ -228,7 +261,14 @@ $current_page = basename($_SERVER['PHP_SELF']);
 <?php } ?>
 
 <?php if (!empty($source)) { ?>
-<p class="text-muted"><strong>Source:</strong> <?php echo htmlspecialchars($source, ENT_QUOTES, 'UTF-8'); ?></p>
+<p class="text-muted"><strong><?php echo t('recipe.source'); ?>:</strong> <?php echo htmlspecialchars($source, ENT_QUOTES, 'UTF-8'); ?></p>
+<?php } ?>
+
+<?php if (!empty($recCategory)) { 
+  $cat = Category::tryFrom($recCategory);
+  $catLabel = $cat ? $cat->label() : $recCategory;
+?>
+<p class="text-muted"><strong><?php echo t('recipe.category'); ?>:</strong> <?php echo htmlspecialchars($catLabel, ENT_QUOTES, 'UTF-8'); ?></p>
 <?php } ?>
 
 <?php if (!empty($recUrl)) { ?>
@@ -248,7 +288,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
 <?php } ?>
 
 <div class="d-flex align-items-center mb-2 flex-wrap gap-2">
-  <h5 class="mb-0 me-2">Ingredients</h5>
+  <h5 class="mb-0 me-2"><?php echo t('recipe.ingredients'); ?></h5>
   <div class="btn-group btn-group-sm doNotPrint" role="group" aria-label="Scale recipe">
     <button type="button" class="btn btn-outline-secondary scale-btn" data-scale="0.5">&frac12;x</button>
     <button type="button" class="btn btn-outline-secondary scale-btn" data-scale="0.6667">&frac23;x</button>
@@ -281,13 +321,13 @@ foreach ($ingredients as $ingr) {
 </ul>
 
 <?php if (!empty($instructionsText)) { ?>
-<h5>Instructions</h5>
+<h5><?php echo t('recipe.instructions'); ?></h5>
 <div class="card card-body bg-light mb-4"><?php echo nl2br(htmlspecialchars($instructionsText, ENT_QUOTES, 'UTF-8')); ?></div>
 <?php } ?>
 
 <!-- Photo Gallery Section -->
 <?php if (!empty($photos)) { ?>
-<h5 class="mt-4 doNotPrint">Photos</h5>
+<h5 class="mt-4 doNotPrint"><?php echo t('recipe.photos'); ?></h5>
 <div class="row g-3 mb-4 doNotPrint">
   <?php foreach ($photos as $photo) { ?>
   <div class="col-6 col-md-4 col-lg-3">
@@ -301,21 +341,23 @@ foreach ($ingredients as $ingr) {
           <?php echo date('M j, Y g:ia', strtotime($photo['created_at'])); ?>
         </small>
         <div class="doNotPrint mt-1">
-          <?php if ($photo['is_primary'] == 1) { ?>
-            <span class="badge bg-success">Primary</span>
-          <?php } else { ?>
-            <form method="post" action="photo_handler.php" class="d-inline">
-              <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
-              <input type="hidden" name="action" value="set_primary">
-              <input type="hidden" name="rec_id" value="<?php echo (int)$id; ?>">
-              <input type="hidden" name="photo_id" value="<?php echo (int)$photo['id']; ?>">
-              <button type="submit" class="btn btn-outline-success btn-sm" title="Set as primary">Primary</button>
-            </form>
+          <?php if ($auth->can('edit', (int)$id)) { ?>
+            <?php if ($photo['is_primary'] == 1) { ?>
+              <span class="badge bg-success">Primary</span>
+            <?php } else { ?>
+              <form method="post" action="photo_handler.php" class="d-inline">
+                <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+                <input type="hidden" name="action" value="set_primary">
+                <input type="hidden" name="rec_id" value="<?php echo (int)$id; ?>">
+                <input type="hidden" name="photo_id" value="<?php echo (int)$photo['id']; ?>">
+                <button type="submit" class="btn btn-outline-success btn-sm" title="Set as primary">Primary</button>
+              </form>
+            <?php } ?>
+            <button type="button" class="btn btn-outline-danger btn-sm"
+                    data-bs-toggle="modal"
+                    data-bs-target="#deletePhotoModal<?php echo (int)$photo['id']; ?>"
+                    title="<?php echo t('navigation.delete'); ?>"><?php echo t('navigation.delete'); ?></button>
           <?php } ?>
-          <button type="button" class="btn btn-outline-danger btn-sm"
-                  data-bs-toggle="modal"
-                  data-bs-target="#deletePhotoModal<?php echo (int)$photo['id']; ?>"
-                  title="Delete photo">Delete</button>
         </div>
       </div>
     </div>
@@ -350,6 +392,7 @@ foreach ($ingredients as $ingr) {
 <?php } ?>
 
 <!-- Upload Photo Form -->
+<?php if ($auth->can('edit', (int)$id)) { ?>
 <div class="doNotPrint mb-4">
   <h6>Add Photo</h6>
   <form method="post" action="photo_handler.php" enctype="multipart/form-data" class="row g-2 align-items-end">
@@ -369,7 +412,7 @@ foreach ($ingredients as $ingr) {
 </div>
 
 <!-- Notes Section -->
-<h5 class="mt-4">Notes</h5>
+<h5 class="mt-4"><?php echo t('recipe.notes'); ?></h5>
 <?php if (!empty($notes)) { ?>
 <div class="mb-3">
   <?php foreach ($notes as $note) { ?>
@@ -379,11 +422,13 @@ foreach ($ingredients as $ingr) {
         <div>
           <?php echo nl2br(htmlspecialchars($note['text'], ENT_QUOTES, 'UTF-8')); ?>
         </div>
+        <?php if ($auth->can('edit', (int)$id)) { ?>
         <div class="doNotPrint ms-2">
           <button type="button" class="btn btn-outline-danger btn-sm"
                   data-bs-toggle="modal"
-                  data-bs-target="#deleteNoteModal<?php echo (int)$note['id']; ?>">Delete</button>
+                  data-bs-target="#deleteNoteModal<?php echo (int)$note['id']; ?>"><?php echo t('navigation.delete'); ?></button>
         </div>
+        <?php } ?>
       </div>
       <small class="text-muted">
         <?php echo date('M j, Y g:ia', strtotime($note['created_at'])); ?>
@@ -422,6 +467,7 @@ foreach ($ingredients as $ingr) {
 <?php } ?>
 
 <!-- Add Note Form -->
+<?php if ($auth->can('edit', (int)$id)) { ?>
 <div class="doNotPrint mb-4">
   <form method="post" action="note_handler.php">
     <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
@@ -433,11 +479,14 @@ foreach ($ingredients as $ingr) {
     <button type="submit" class="btn btn-primary btn-sm">Add Note</button>
   </form>
 </div>
+<?php } ?>
 
+<?php if ($auth->can('edit', (int)$id)) { ?>
 <div class="doNotPrint mt-3">
-  <a href="edit.php?id=<?php echo (int)$id; ?>" class="btn btn-primary">Edit</a>
-  <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">Delete</button>
+  <a href="edit.php?id=<?php echo (int)$id; ?>" class="btn btn-primary"><?php echo t('navigation.edit'); ?></a>
+  <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal"><?php echo t('navigation.delete'); ?></button>
 </div>
+<?php } ?>
 
 <!-- Delete Confirmation Modal -->
 <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">

@@ -5,7 +5,7 @@
 
 - **Primary Technologies:** PHP 7.4+, MySQL/MariaDB (via PDO), Bootstrap 5.3.0, jQuery 3.6.0.
 - **Architecture:** Page-Controller pattern. Each `.php` file in the root represents a page or an action handler. Centralized bootstrapping is handled via `rec_includes.php`.
-- **Database Layer:** Custom PDO wrapper in `includes/pdo_db.php` using the `BookLogDB` class, providing parameterized query support. Legacy `dbi_*` functions are maintained for backward compatibility.
+- **Database Layer:** Modern PDO abstraction in `src/Database/Database.php` using the `Recipes\Database\Database` class. A legacy shim in `includes/pdo_db.php` provides backward compatibility for the `BookLogDB` class and `dbi_*` functions.
 - **Frontend:** Server-side rendered HTML with Bootstrap 5 UI. JavaScript logic (e.g., dynamic rows in `edit.php`, filtering in `index.php`) uses jQuery.
 
 ## Getting Started
@@ -16,16 +16,12 @@
 - Composer (for development tools)
 - Apache (or equivalent web server)
 
-### Configuration
-1. Copy `.env.example` to `.env`.
-2. Configure your database credentials in `.env`:
-   ```env
-   DB_HOST=127.0.0.1
-   DB_DATABASE=recipes
-   DB_LOGIN=your_username
-   DB_PASSWORD=your_password
-   ```
-3. The application will automatically load these settings via `includes/config.php`.
+### Configuration & Setup
+Run the interactive setup script. This will guide you through creating your database and `.env` file.
+```bash
+php scripts/setup.php
+```
+The application will automatically load these settings.
 
 ### Building and Running
 The application is served directly by PHP. Point your web server's document root to the project directory or access it via `http://localhost/recipes/`.
@@ -53,9 +49,10 @@ Development dependencies and scripts are managed via Composer.
 Every entry-point PHP file must include `rec_includes.php` at the very beginning. This file initializes sessions, security headers, database connections, and utility functions.
 
 ### Database Interaction
-Always use the `BookLogDB` class or the `dbi_*` wrappers with parameter binding to prevent SQL injection:
+Always use the `Database` class with parameter binding to prevent SQL injection:
 ```php
-$res = BookLogDB::query("SELECT * FROM rec_recipe WHERE rec_id = ?", [$id]);
+use Recipes\Database\Database;
+$res = Database::query("SELECT * FROM rec_recipe WHERE rec_id = ?", [$id]);
 ```
 
 ### Security Conventions
@@ -65,7 +62,6 @@ $res = BookLogDB::query("SELECT * FROM rec_recipe WHERE rec_id = ?", [$id]);
 - **Sessions:** Session security (HttpOnly, Secure, SameSite) is configured in `includes/security.php`.
 
 ### Important Notes
-- **Legacy Code:** `includes/functions.php` contains approximately 4,800 lines of code inherited from WebCalendar. Much of this is currently unused and slated for cleanup (see `STATUS.md`).
 - **Parent Site Integration:** The application currently looks for `../header.php` and `../style.css` for integration with a parent intranet site.
 - **Authentication:** The application currently lacks a built-in authentication system and is intended for trusted single-user environments or protected behind web server auth.
 

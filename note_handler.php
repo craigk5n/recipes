@@ -2,6 +2,9 @@
 
 include "rec_includes.php";
 
+use Recipes\Database\Database;
+use function Recipes\Auth\getAuthManager;
+
 // Validate CSRF token
 if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
   die_miserable_death("Invalid CSRF token.");
@@ -15,13 +18,17 @@ if (empty($recId)) {
   exit;
 }
 
+if (!getAuthManager()->can('edit', (int)$recId)) {
+    die_miserable_death("Unauthorized.");
+}
+
 // Verify recipe exists
-$res = BookLogDB::query("SELECT rec_id FROM rec_recipe WHERE rec_id = ?", [$recId]);
-if (!$res || !BookLogDB::fetchRow($res)) {
+$res = Database::query("SELECT rec_id FROM rec_recipe WHERE rec_id = ?", [$recId]);
+if (!$res || !Database::fetchRow($res)) {
   header("Location: index.php");
   exit;
 }
-BookLogDB::freeResult($res);
+Database::freeResult($res);
 
 $redirectUrl = "view.php?id=" . (int)$recId;
 
@@ -33,12 +40,12 @@ if ($action === 'add') {
     exit;
   }
 
-  BookLogDB::query(
+  Database::query(
     "INSERT INTO rec_note (rec_id, note_text) VALUES (?, ?)",
     [$recId, $noteText]
   );
 
-  BookLogDB::query("UPDATE rec_recipe SET rec_last_updated = NOW() WHERE rec_id = ?", [$recId]);
+  Database::query("UPDATE rec_recipe SET rec_last_updated = NOW() WHERE rec_id = ?", [$recId]);
 
   header("Location: $redirectUrl");
   exit;
@@ -52,9 +59,9 @@ if ($action === 'add') {
   }
 
   // Delete with rec_id guard to prevent cross-recipe deletion
-  BookLogDB::query("DELETE FROM rec_note WHERE note_id = ? AND rec_id = ?", [$noteId, $recId]);
+  Database::query("DELETE FROM rec_note WHERE note_id = ? AND rec_id = ?", [$noteId, $recId]);
 
-  BookLogDB::query("UPDATE rec_recipe SET rec_last_updated = NOW() WHERE rec_id = ?", [$recId]);
+  Database::query("UPDATE rec_recipe SET rec_last_updated = NOW() WHERE rec_id = ?", [$recId]);
 
   header("Location: $redirectUrl");
   exit;

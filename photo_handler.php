@@ -2,8 +2,15 @@
 
 include "rec_includes.php";
 
+use Recipes\Database\Database;
+use function Recipes\Auth\getAuthManager;
+
 // Rate limit: 20 photo uploads per hour
 enforceRateLimit('upload', 20, 3600);
+
+if (!getAuthManager()->can('edit')) {
+  die_miserable_death("Unauthorized.");
+}
 
 // Validate CSRF token
 if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
@@ -18,13 +25,17 @@ if (empty($recId)) {
   exit;
 }
 
+if (!getAuthManager()->can('edit', (int)$recId)) {
+    die_miserable_death("Unauthorized.");
+}
+
 // Verify recipe exists
-$res = BookLogDB::query("SELECT rec_id FROM rec_recipe WHERE rec_id = ?", [$recId]);
-if (!$res || !BookLogDB::fetchRow($res)) {
+$res = Database::query("SELECT rec_id FROM rec_recipe WHERE rec_id = ?", [$recId]);
+if (!$res || !Database::fetchRow($res)) {
   header("Location: index.php");
   exit;
 }
-BookLogDB::freeResult($res);
+Database::freeResult($res);
 
 $redirectUrl = "view.php?id=" . (int)$recId;
 
@@ -127,17 +138,17 @@ if ($action === 'upload') {
   $fileSize = strlen($photoData);
 
   // Check if this is the first photo (auto-set as primary)
-  $res = BookLogDB::query("SELECT COUNT(*) FROM rec_photo WHERE rec_id = ?", [$recId]);
-  $row = BookLogDB::fetchRow($res);
+  $res = Database::query("SELECT COUNT(*) FROM rec_photo WHERE rec_id = ?", [$recId]);
+  $row = Database::fetchRow($res);
   $isPrimary = ($row[0] == 0) ? 1 : 0;
-  BookLogDB::freeResult($res);
+  Database::freeResult($res);
 
-  BookLogDB::query(
+  Database::query(
     "INSERT INTO rec_photo (rec_id, photo_data, original_name, mime_type, file_size, is_primary) VALUES (?, ?, ?, ?, ?, ?)",
     [$recId, $photoData, $originalName, $mimeType, $fileSize, $isPrimary]
   );
 
-  BookLogDB::query("UPDATE rec_recipe SET rec_last_updated = NOW() WHERE rec_id = ?", [$recId]);
+  Database::query("UPDATE rec_recipe SET rec_last_updated = NOW() WHERE rec_id = ?", [$recId]);
 
   header("Location: $redirectUrl");
   exit;
@@ -151,28 +162,28 @@ if ($action === 'upload') {
   }
 
   // Fetch photo record (verify it belongs to this recipe)
-  $res = BookLogDB::query("SELECT is_primary FROM rec_photo WHERE photo_id = ? AND rec_id = ?", [$photoId, $recId]);
-  $row = BookLogDB::fetchRow($res);
+  $res = Database::query("SELECT is_primary FROM rec_photo WHERE photo_id = ? AND rec_id = ?", [$photoId, $recId]);
+  $row = Database::fetchRow($res);
   if (!$row) {
     header("Location: $redirectUrl");
     exit;
   }
   $wasPrimary = $row[0];
-  BookLogDB::freeResult($res);
+  Database::freeResult($res);
 
   // Delete DB record
-  BookLogDB::query("DELETE FROM rec_photo WHERE photo_id = ?", [$photoId]);
+  Database::query("DELETE FROM rec_photo WHERE photo_id = ?", [$photoId]);
 
   // If deleted photo was primary, promote the oldest remaining photo
   if ($wasPrimary) {
-    $res = BookLogDB::query("SELECT photo_id FROM rec_photo WHERE rec_id = ? ORDER BY created_at ASC LIMIT 1", [$recId]);
-    if ($res && ($row = BookLogDB::fetchRow($res))) {
-      BookLogDB::query("UPDATE rec_photo SET is_primary = 1 WHERE photo_id = ?", [$row[0]]);
+    $res = Database::query("SELECT photo_id FROM rec_photo WHERE rec_id = ? ORDER BY created_at ASC LIMIT 1", [$recId]);
+    if ($res && ($row = Database::fetchRow($res))) {
+      Database::query("UPDATE rec_photo SET is_primary = 1 WHERE photo_id = ?", [$row[0]]);
     }
-    if ($res) BookLogDB::freeResult($res);
+    if ($res) Database::freeResult($res);
   }
 
-  BookLogDB::query("UPDATE rec_recipe SET rec_last_updated = NOW() WHERE rec_id = ?", [$recId]);
+  Database::query("UPDATE rec_recipe SET rec_last_updated = NOW() WHERE rec_id = ?", [$recId]);
 
   header("Location: $redirectUrl");
   exit;
@@ -185,16 +196,16 @@ if ($action === 'upload') {
     exit;
   }
 
-  BookLogDB::beginTransaction();
+  Database::beginTransaction();
   try {
     // Clear existing primary
-    BookLogDB::query("UPDATE rec_photo SET is_primary = 0 WHERE rec_id = ?", [$recId]);
+    Database::query("UPDATE rec_photo SET is_primary = 0 WHERE rec_id = ?", [$recId]);
     // Set new primary
-    BookLogDB::query("UPDATE rec_photo SET is_primary = 1 WHERE photo_id = ? AND rec_id = ?", [$photoId, $recId]);
-    BookLogDB::query("UPDATE rec_recipe SET rec_last_updated = NOW() WHERE rec_id = ?", [$recId]);
-    BookLogDB::commit();
+    Database::query("UPDATE rec_photo SET is_primary = 1 WHERE photo_id = ? AND rec_id = ?", [$photoId, $recId]);
+    Database::query("UPDATE rec_recipe SET rec_last_updated = NOW() WHERE rec_id = ?", [$recId]);
+    Database::commit();
   } catch (Exception $e) {
-    BookLogDB::rollback();
+    Database::rollback();
     header("Location: $redirectUrl&error=" . urlencode("Failed to set primary photo."));
     exit;
   }

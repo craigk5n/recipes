@@ -7,13 +7,15 @@ if ( ! empty ( $PHP_SELF ) && preg_match ( "/\/includes\//", $PHP_SELF ) ) {
     die ( "You can't access this file directly!" );
 }
 
+use Recipes\Database\Database;
+
 // Establish a database connection using PDO.
 if ( empty ( $c ) ) {
-  $c = BookLogDB::connect();
+  $c = Database::connect();
   if ( ! $c ) {
     die_miserable_death (
       "Error connecting to database:<blockquote>" .
-      BookLogDB::error() . "</blockquote>\n" );
+      Database::error() . "</blockquote>\n" );
   }
 }
 

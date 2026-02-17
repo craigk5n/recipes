@@ -4,6 +4,9 @@ declare(strict_types=1);
 date_default_timezone_set("America/New_York");
 $title = 'k5n Recipes';
 
+// Load composer autoloader
+require_once __DIR__ . '/../vendor/autoload.php';
+
 // Define some globals needed by functions
 $TROUBLE_URL = "";
 
@@ -15,8 +18,6 @@ if (session_status() === PHP_SESSION_NONE) {
 
 include_once __DIR__ . "/../includes/config.php";
 include_once __DIR__ . "/../includes/pdo_db.php";
-include_once __DIR__ . "/../includes/functions.php";
-include_once __DIR__ . "/../includes/dbtable.php";
 // skip includes/connect.php as it tries to connect to real DB
 
 // Initialize i18n system

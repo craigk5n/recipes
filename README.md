@@ -12,6 +12,8 @@ k5n Recipes allows you to manage your personal recipe collection with ease. It f
 - **Recipe Management:** Create, edit, and delete recipes with ingredients and instructions.
 - **Import from URL:** Automatically extract recipes from websites using JSON-LD structured data.
 - **Photo Support:** Upload and manage multiple photos for each recipe.
+- **Flexible Authentication:** Supports Open, PIN-locked (Family), and Multi-user modes. See [AUTH.md](docs/AUTH.md).
+- **Internationalization:** Modern i18n system with support for multiple languages. See [I18N.md](docs/I18N.md).
 - **Search & Filter:** Quickly find recipes with real-time filtering and sorting.
 - **Favorites:** Mark your favorite recipes for quick access.
 - **Mobile Friendly:** Fully responsive design using Bootstrap 5.
@@ -29,10 +31,10 @@ k5n Recipes allows you to manage your personal recipe collection with ease. It f
    ```bash
    composer install
    ```
-3. Configure your database:
-   - Copy `.env.example` to `.env`.
-   - Update the `DB_*` variables with your database credentials.
-4. Import the database schema (if available) or ensure your database user has permission to create tables.
+3. Run the interactive setup script. This will create the `.env` file for you if it doesn't exist, create the database, and run all migrations.
+   ```bash
+   php scripts/setup.php
+   ```
 
 ## Development
 

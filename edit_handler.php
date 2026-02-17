@@ -2,6 +2,16 @@
 
 include "rec_includes.php";
 
+use Recipes\Database\Database;
+use function Recipes\Auth\getAuthManager;
+use Recipes\Recipe\Category;
+use Recipes\Recipe\Unit;
+
+$auth = getAuthManager();
+if (!$auth->can('edit')) { // Global check for any edit permission (e.g., admin)
+    die_miserable_death("Unauthorized.");
+}
+
 // Validate CSRF token
 if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
   die_miserable_death("Invalid CSRF token.");
@@ -10,42 +20,55 @@ if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
 $id = sanitizeInt($_POST['id'] ?? '');
 $isNew = empty($id);
 
+// Specific ownership check for non-admins editing existing recipes
+if (!$isNew && !$auth->can('edit', (int)$id)) {
+    die_miserable_death("Unauthorized: You do not own this recipe.");
+}
+
 $recTitle = sanitizeString($_POST['title'] ?? '');
 $recSource = sanitizeString($_POST['source'] ?? '');
 $recUrl = trim($_POST['url'] ?? '');
+$recCategory = sanitizeString($_POST['category'] ?? '');
 $instructions = trim($_POST['instructions'] ?? '');
 
 if (empty($recTitle)) {
   die_miserable_death("Error: Title is required.");
 }
 
+// Validate category against Enum
+$categoryEnum = Category::tryFrom($recCategory);
+$finalCategory = $categoryEnum ? $categoryEnum->value : null;
+
 $now = date('Y-m-d H:i:s');
 
-BookLogDB::beginTransaction();
+Database::beginTransaction();
 
 try {
   if ($isNew) {
     // Get next ID
-    $res = BookLogDB::query("SELECT MAX(rec_id) FROM rec_recipe");
-    $row = BookLogDB::fetchRow($res);
+    $res = Database::query("SELECT MAX(rec_id) FROM rec_recipe");
+    $row = Database::fetchRow($res);
     $id = ($row && $row[0]) ? $row[0] + 1 : 1;
-    BookLogDB::freeResult($res);
+    Database::freeResult($res);
 
     // Insert recipe
-    BookLogDB::query(
-      "INSERT INTO rec_recipe (rec_id, rec_title, rec_last_updated, rec_date_added, rec_source, rec_url) VALUES (?, ?, ?, ?, ?, ?)",
-      [$id, $recTitle, $now, $now, $recSource, $recUrl]
+    $currentUser = $auth->getCurrentUser();
+    $userId = $currentUser ? $currentUser['id'] : null;
+
+    Database::query(
+      "INSERT INTO rec_recipe (rec_id, rec_title, rec_last_updated, rec_date_added, rec_source, rec_url, rec_category, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      [$id, $recTitle, $now, $now, $recSource, $recUrl, $finalCategory, $userId]
     );
   } else {
     // Update recipe
-    BookLogDB::query(
-      "UPDATE rec_recipe SET rec_title = ?, rec_last_updated = ?, rec_source = ?, rec_url = ? WHERE rec_id = ?",
-      [$recTitle, $now, $recSource, $recUrl, $id]
+    Database::query(
+      "UPDATE rec_recipe SET rec_title = ?, rec_last_updated = ?, rec_source = ?, rec_url = ?, rec_category = ? WHERE rec_id = ? AND user_id = ?",
+      [$recTitle, $now, $recSource, $recUrl, $finalCategory, $id, $userId]
     );
 
     // Delete existing ingredients and instructions (will reinsert)
-    BookLogDB::query("DELETE FROM rec_ingr WHERE rec_id = ?", [$id]);
-    BookLogDB::query("DELETE FROM rec_instructions WHERE rec_id = ?", [$id]);
+    Database::query("DELETE FROM rec_ingr WHERE rec_id = ?", [$id]);
+    Database::query("DELETE FROM rec_instructions WHERE rec_id = ?", [$id]);
   }
 
   // Insert ingredients
@@ -60,13 +83,17 @@ try {
     if (empty($name)) continue;
 
     $qty = trim($qtys[$i] ?? '');
-    $unit = trim($units[$i] ?? '');
+    $unitRaw = trim($units[$i] ?? '');
     $prep = trim($preps[$i] ?? '');
+
+    // Standardize unit via Enum
+    $unitEnum = Unit::fromLegacy($unitRaw);
+    $unit = $unitEnum ? $unitEnum->value : $unitRaw;
 
     // Pass NULL for empty quantity (FLOAT column rejects empty strings in strict mode)
     $qtyParam = ($qty !== '') ? $qty : null;
 
-    BookLogDB::query(
+    Database::query(
       "INSERT INTO rec_ingr (rec_id, rec_ingr_num, rec_quantity, rec_quantity_type, rec_name, rec_prep) VALUES (?, ?, ?, ?, ?, ?)",
       [$id, $ingrNum, $qtyParam, $unit, $name, $prep]
     );
@@ -75,15 +102,15 @@ try {
 
   // Insert instructions
   if (!empty($instructions)) {
-    BookLogDB::query(
+    Database::query(
       "INSERT INTO rec_instructions (rec_id, rec_instructions) VALUES (?, ?)",
       [$id, $instructions]
     );
   }
 
-  BookLogDB::commit();
+  Database::commit();
 } catch (Exception $e) {
-  BookLogDB::rollback();
+  Database::rollback();
   die_miserable_death("Error saving recipe: " . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8'));
 }
 
@@ -150,7 +177,7 @@ if (!empty($imageUrl) && filter_var($imageUrl, FILTER_VALIDATE_URL)) {
         if (!empty($photoData)) {
           $fileSize = strlen($photoData);
           $originalName = basename(parse_url($imageUrl, PHP_URL_PATH)) ?: 'imported.jpg';
-          BookLogDB::query(
+          Database::query(
             "INSERT INTO rec_photo (rec_id, photo_data, original_name, mime_type, file_size, is_primary) VALUES (?, ?, ?, ?, ?, 1)",
             [$id, $photoData, $originalName, $mimeType, $fileSize]
           );

@@ -1,6 +1,16 @@
 <?php
 
 include "rec_includes.php";
+
+use function Recipes\I18n\t;
+use function Recipes\Auth\getAuthManager;
+
+$auth = getAuthManager();
+if (!$auth->can('edit')) {
+    header("Location: login.php");
+    exit;
+}
+
 require_once "includes/recipe_import.php";
 
 $pagetitle = 'Import Recipe';
@@ -56,14 +66,28 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <div class="collapse navbar-collapse" id="recipesNavbar">
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         <li class="nav-item">
-          <a class="nav-link" href="index.php">Home</a>
+          <a class="nav-link" href="index.php"><?php echo t('navigation.home'); ?></a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="edit.php">Add Recipe</a>
+          <a class="nav-link" href="edit.php"><?php echo t('navigation.add_recipe'); ?></a>
         </li>
         <li class="nav-item">
-          <a class="nav-link active" href="import.php">Import Recipe</a>
+          <a class="nav-link active" href="import.php"><?php echo t('recipe.import'); ?></a>
         </li>
+      </ul>
+      <ul class="navbar-nav ms-auto">
+        <?php if ($auth->getMode() === 'pin') { ?>
+          <li class="nav-item"><a class="nav-link" href="auth_handler.php?action=logout" title="Lock">🔓</a></li>
+        <?php } elseif ($auth->getMode() === 'user') { ?>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <?php echo htmlspecialchars($auth->getCurrentUser()['username']); ?>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+              <li><a class="dropdown-menu" href="auth_handler.php?action=logout">Logout</a></li>
+            </ul>
+          </li>
+        <?php } ?>
       </ul>
     </div>
   </div>
@@ -180,7 +204,7 @@ if (!empty($meta)) { ?>
 <!-- URL Input Form -->
 <div class="card">
 <div class="card-header bg-primary text-white">
-  <h1 class="h4 mb-0">Import Recipe from URL</h1>
+  <h1 class="h4 mb-0"><?php echo t('recipe.import_from_url'); ?></h1>
 </div>
 <div class="card-body">
 
@@ -197,8 +221,8 @@ if (!empty($meta)) { ?>
            placeholder="https://www.allrecipes.com/recipe/..."
            value="<?php echo htmlspecialchars($_POST['url'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required>
   </div>
-  <button type="submit" class="btn btn-primary">Import</button>
-  <a href="index.php" class="btn btn-secondary">Cancel</a>
+  <button type="submit" class="btn btn-primary"><?php echo t('navigation.search'); ?></button>
+  <a href="index.php" class="btn btn-secondary"><?php echo t('navigation.cancel'); ?></a>
 </form>
 
 </div>
