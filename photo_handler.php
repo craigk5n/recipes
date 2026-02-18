@@ -5,6 +5,17 @@ include "rec_includes.php";
 use Recipes\Database\Database;
 use function Recipes\Auth\getAuthManager;
 
+// Detect if POST data was silently dropped due to exceeding post_max_size.
+// When this happens, $_POST and $_FILES are both empty, which causes a
+// confusing "Invalid CSRF token" error instead of a useful file size message.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_POST) && empty($_FILES)) {
+  $maxSize = ini_get('post_max_size');
+  $referer = $_SERVER['HTTP_REFERER'] ?? 'index.php';
+  $sep = str_contains($referer, '?') ? '&' : '?';
+  header("Location: " . $referer . $sep . "error=" . urlencode("Upload failed: file exceeds the maximum size ({$maxSize}). Please choose a smaller file."));
+  exit;
+}
+
 // Rate limit: 20 photo uploads per hour
 enforceRateLimit('upload', 20, 3600);
 
