@@ -36,9 +36,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if (empty($url)) {
     $error = 'Please enter a URL.';
   } else {
-    $recipeData = importRecipeFromUrl($url);
+    $result = importRecipeFromUrl($url);
+    $recipeData = $result['data'];
     if ($recipeData === null) {
-      $error = 'No recipe found at this URL. The site may not include structured recipe data (JSON-LD).';
+      $errorCode = $result['error'];
+      switch ($errorCode) {
+        case 'invalid_url':
+          $error = 'The URL provided is not valid. Please enter a full URL starting with http:// or https://.';
+          break;
+        case 'fetch_failed':
+          $error = 'Could not fetch the page. The site may be down, blocking automated requests, or the URL may be incorrect.';
+          break;
+        case 'no_jsonld':
+          $error = 'No structured recipe data found on this page. This site does not use JSON-LD markup.'
+            . ' You can try copying the recipe text and using the <a href="paste.php">Paste Recipe</a> feature instead.';
+          break;
+        case 'no_recipe_type':
+          $foundTypes = $result['found_types'] ?? [];
+          $typesStr = !empty($foundTypes) ? ' (found: ' . htmlspecialchars(implode(', ', array_unique($foundTypes)), ENT_QUOTES, 'UTF-8') . ')' : '';
+          $error = 'This page has structured data but it is not marked as a Recipe' . $typesStr . '.'
+            . ' Try copying the recipe text and using the <a href="paste.php">Paste Recipe</a> feature instead.';
+          break;
+        default:
+          $error = 'Could not import this recipe. Try using the <a href="paste.php">Paste Recipe</a> feature instead.';
+          break;
+      }
     }
   }
 }
@@ -73,6 +95,9 @@ $current_page = basename($_SERVER['PHP_SELF']);
         </li>
         <li class="nav-item">
           <a class="nav-link active" href="import.php"><?php echo t('recipe.import'); ?></a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="paste.php"><?php echo t('recipe.paste'); ?></a>
         </li>
       </ul>
       <ul class="navbar-nav ms-auto">
@@ -209,7 +234,7 @@ if (!empty($meta)) { ?>
 <div class="card-body">
 
 <?php if (!empty($error)) { ?>
-<div class="alert alert-danger"><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?></div>
+<div class="alert alert-danger"><?php echo $error; ?></div>
 <?php } ?>
 
 <p>Enter the URL of a recipe page. The recipe data will be extracted automatically from sites that use structured data (most major recipe sites).</p>

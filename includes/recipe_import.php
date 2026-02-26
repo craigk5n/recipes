@@ -4,24 +4,24 @@
  * Import a recipe from a URL by parsing JSON-LD schema.org Recipe data.
  *
  * @param string $url The URL to fetch and parse
- * @return array|null Normalized recipe data array, or null if no recipe found
+ * @return array{data: array|null, error: string|null} Result with recipe data or error message
  */
 function importRecipeFromUrl($url) {
   if (!filter_var($url, FILTER_VALIDATE_URL)) {
-    return null;
+    return ['data' => null, 'error' => 'invalid_url'];
   }
 
   $html = _fetchUrl($url);
   if ($html === null) {
-    return null;
+    return ['data' => null, 'error' => 'fetch_failed'];
   }
 
-  $recipe = _extractRecipeFromHtml($html);
-  if ($recipe === null) {
-    return null;
+  $extraction = _extractRecipeFromHtml($html);
+  if ($extraction['recipe'] === null) {
+    return ['data' => null, 'error' => $extraction['reason']];
   }
 
-  return _normalizeRecipe($recipe, $url);
+  return ['data' => _normalizeRecipe($extraction['recipe'], $url), 'error' => null];
 }
 
 /**
@@ -54,6 +54,8 @@ function _fetchUrl($url) {
 
 /**
  * Parse HTML and extract Recipe object from JSON-LD script tags.
+ *
+ * @return array{recipe: array|null, reason: string} Extraction result with reason on failure
  */
 function _extractRecipeFromHtml($html) {
   // Suppress DOMDocument warnings for malformed HTML
@@ -64,6 +66,8 @@ function _extractRecipeFromHtml($html) {
 
   $scripts = $doc->getElementsByTagName('script');
   $candidates = [];
+  $hasJsonLd = false;
+  $foundTypes = [];
 
   foreach ($scripts as $script) {
     if ($script->getAttribute('type') !== 'application/ld+json') {
@@ -80,6 +84,9 @@ function _extractRecipeFromHtml($html) {
       continue;
     }
 
+    $hasJsonLd = true;
+    _collectTypes($data, $foundTypes);
+
     $found = _findRecipesInData($data);
     foreach ($found as $recipe) {
       $candidates[] = $recipe;
@@ -87,7 +94,10 @@ function _extractRecipeFromHtml($html) {
   }
 
   if (empty($candidates)) {
-    return null;
+    if (!$hasJsonLd) {
+      return ['recipe' => null, 'reason' => 'no_jsonld'];
+    }
+    return ['recipe' => null, 'reason' => 'no_recipe_type', 'found_types' => $foundTypes];
   }
 
   // Pick the most complete recipe (most non-null relevant fields)
@@ -108,7 +118,41 @@ function _extractRecipeFromHtml($html) {
     }
   }
 
-  return $best;
+  return ['recipe' => $best, 'reason' => 'ok'];
+}
+
+/**
+ * Collect @type values from a JSON-LD structure for diagnostic purposes.
+ */
+function _collectTypes($data, &$types) {
+  if (!is_array($data)) {
+    return;
+  }
+
+  if (isset($data['@type'])) {
+    $t = $data['@type'];
+    if (is_string($t)) {
+      $types[] = $t;
+    } elseif (is_array($t)) {
+      foreach ($t as $v) {
+        if (is_string($v)) {
+          $types[] = $v;
+        }
+      }
+    }
+  }
+
+  if (isset($data['@graph']) && is_array($data['@graph'])) {
+    foreach ($data['@graph'] as $item) {
+      _collectTypes($item, $types);
+    }
+  }
+
+  if (array_is_list($data)) {
+    foreach ($data as $item) {
+      _collectTypes($item, $types);
+    }
+  }
 }
 
 /**
