@@ -4,8 +4,17 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "3e64898afa42be4cc4938fb46cc3d180",
+    "content-hash": "0770a5990a99c1880d97a77eec754d90",
     "packages": [
+        {
+            "name": "sortablejs/sortablejs",
+            "version": "1.15.7",
+            "dist": {
+                "type": "zip",
+                "url": "https://github.com/SortableJS/Sortable/archive/refs/tags/1.15.7.zip"
+            },
+            "type": "library"
+        },
         {
             "name": "twbs/bootstrap",
             "version": "v5.3.8",

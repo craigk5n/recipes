@@ -19,6 +19,9 @@ $assets = [
     // Bootstrap JS
     $vendorDir . '/twbs/bootstrap/dist/js/bootstrap.bundle.min.js' => $pubDir . '/bootstrap.bundle.min.js',
     $vendorDir . '/twbs/bootstrap/dist/js/bootstrap.bundle.min.js.map' => $pubDir . '/bootstrap.bundle.min.js.map',
+
+    // SortableJS (drag-and-drop for ingredient reordering)
+    $vendorDir . '/sortablejs/sortablejs/Sortable.min.js' => $pubDir . '/Sortable.min.js',
 ];
 
 $created = 0;

@@ -7,6 +7,7 @@ use function Recipes\Auth\getAuthManager;
 use Recipes\Database\Database;
 use Recipes\Recipe\Unit;
 use Recipes\Recipe\Category;
+use Recipes\Recipe\RecipeTextParser;
 
 $auth = getAuthManager();
 if (!$auth->can('edit')) {
@@ -73,12 +74,18 @@ if ($isEdit) {
     $instructions = $importData['instructions'] ?? '';
     if (!empty($importData['ingredients'])) {
       foreach ($importData['ingredients'] as $ingr) {
-        $ingredients[] = [
-          'qty' => '',
-          'unit' => '',
-          'name' => $ingr['raw'] ?? '',
-          'prep' => '',
-        ];
+        if (isset($ingr['name'])) {
+          // Structured data from paste.php
+          $ingredients[] = [
+            'qty'  => $ingr['qty'] ?? '',
+            'unit' => $ingr['unit'] ?? '',
+            'name' => $ingr['name'] ?? '',
+            'prep' => $ingr['prep'] ?? '',
+          ];
+        } else {
+          // Raw string from URL import — parse into structured fields
+          $ingredients[] = RecipeTextParser::parseIngredientLine($ingr['raw'] ?? '');
+        }
       }
     }
   }
@@ -122,6 +129,9 @@ $current_page = basename($_SERVER['PHP_SELF']);
         </li>
         <li class="nav-item">
           <a class="nav-link" href="import.php"><?php echo t('recipe.import'); ?></a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="paste.php"><?php echo t('recipe.paste'); ?></a>
         </li>
       </ul>
       <ul class="navbar-nav ms-auto">
@@ -193,21 +203,28 @@ $current_page = basename($_SERVER['PHP_SELF']);
   <label class="form-label"><?php echo t('recipe.ingredients'); ?></label>
   <div id="ingredients-container">
     <?php foreach ($ingredients as $i => $ingr) { ?>
-    <div class="row mb-2 ingredient-row">
-      <div class="col-2">
-        <input type="text" class="form-control" name="qty[]" placeholder="Qty" value="<?php echo htmlspecialchars($ingr['qty'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+    <div class="row mb-2 ingredient-row align-items-center">
+      <div class="col-auto px-1 ingredient-drag-handle" title="Drag to reorder" aria-label="Drag to reorder">
+        <span class="text-muted" style="cursor: grab; user-select: none;">&#x2630;</span>
       </div>
-      <div class="col-2">
-        <input type="text" class="form-control" name="unit[]" list="units-list" placeholder="Unit" value="<?php echo htmlspecialchars($ingr['unit'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
-      </div>
-      <div class="col-3">
-        <input type="text" class="form-control" name="ingredient[]" placeholder="Ingredient" value="<?php echo htmlspecialchars($ingr['name'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
-      </div>
-      <div class="col-3">
-        <input type="text" class="form-control" name="prep[]" placeholder="Prep" value="<?php echo htmlspecialchars($ingr['prep'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
-      </div>
-      <div class="col-2">
-        <button type="button" class="btn btn-danger btn-remove-ingredient">Remove</button>
+      <div class="col">
+        <div class="row g-2">
+          <div class="col-2">
+            <input type="text" class="form-control" name="qty[]" placeholder="Qty" value="<?php echo htmlspecialchars($ingr['qty'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+          </div>
+          <div class="col-2">
+            <input type="text" class="form-control" name="unit[]" list="units-list" placeholder="Unit" value="<?php echo htmlspecialchars($ingr['unit'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+          </div>
+          <div class="col-3">
+            <input type="text" class="form-control" name="ingredient[]" placeholder="Ingredient" value="<?php echo htmlspecialchars($ingr['name'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+          </div>
+          <div class="col-3">
+            <input type="text" class="form-control" name="prep[]" placeholder="Prep" value="<?php echo htmlspecialchars($ingr['prep'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+          </div>
+          <div class="col-2">
+            <button type="button" class="btn btn-danger btn-remove-ingredient">Remove</button>
+          </div>
+        </div>
       </div>
     </div>
     <?php } ?>
@@ -231,18 +248,33 @@ $current_page = basename($_SERVER['PHP_SELF']);
   <?php } ?>
 </datalist>
 
+<script src="pub/Sortable.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('ingredients-container');
+
+    Sortable.create(container, {
+        handle: '.ingredient-drag-handle',
+        animation: 150,
+        ghostClass: 'bg-light',
+    });
+
     document.getElementById('btn-add-ingredient').addEventListener('click', function() {
-        const container = document.getElementById('ingredients-container');
         const row = document.createElement('div');
-        row.className = 'row mb-2 ingredient-row';
+        row.className = 'row mb-2 ingredient-row align-items-center';
         row.innerHTML =
-            '<div class="col-2"><input type="text" class="form-control" name="qty[]" placeholder="Qty"></div>' +
-            '<div class="col-2"><input type="text" class="form-control" name="unit[]" list="units-list" placeholder="Unit"></div>' +
-            '<div class="col-3"><input type="text" class="form-control" name="ingredient[]" placeholder="Ingredient"></div>' +
-            '<div class="col-3"><input type="text" class="form-control" name="prep[]" placeholder="Prep"></div>' +
-            '<div class="col-2"><button type="button" class="btn btn-danger btn-remove-ingredient">Remove</button></div>';
+            '<div class="col-auto px-1 ingredient-drag-handle" title="Drag to reorder" aria-label="Drag to reorder">' +
+                '<span class="text-muted" style="cursor: grab; user-select: none;">&#x2630;</span>' +
+            '</div>' +
+            '<div class="col">' +
+                '<div class="row g-2">' +
+                    '<div class="col-2"><input type="text" class="form-control" name="qty[]" placeholder="Qty"></div>' +
+                    '<div class="col-2"><input type="text" class="form-control" name="unit[]" list="units-list" placeholder="Unit"></div>' +
+                    '<div class="col-3"><input type="text" class="form-control" name="ingredient[]" placeholder="Ingredient"></div>' +
+                    '<div class="col-3"><input type="text" class="form-control" name="prep[]" placeholder="Prep"></div>' +
+                    '<div class="col-2"><button type="button" class="btn btn-danger btn-remove-ingredient">Remove</button></div>' +
+                '</div>' +
+            '</div>';
         container.appendChild(row);
     });
 
