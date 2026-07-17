@@ -420,23 +420,47 @@ foreach ($ingredients as $ingr) {
 <?php if (!empty($notes)) { ?>
 <div class="mb-3">
   <?php foreach ($notes as $note) { ?>
-  <div class="card mb-2">
+  <div class="card mb-2" id="noteCard<?php echo (int)$note['id']; ?>">
     <div class="card-body py-2 px-3">
-      <div class="d-flex justify-content-between align-items-start">
-        <div>
-          <?php echo nl2br(htmlspecialchars($note['text'], ENT_QUOTES, 'UTF-8')); ?>
+      <!-- Display mode -->
+      <div class="note-display" id="noteDisplay<?php echo (int)$note['id']; ?>">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <?php echo nl2br(htmlspecialchars($note['text'], ENT_QUOTES, 'UTF-8')); ?>
+          </div>
+          <?php if ($auth->can('edit', (int)$id)) { ?>
+          <div class="doNotPrint ms-2 d-flex gap-1">
+            <button type="button" class="btn btn-outline-secondary btn-sm note-edit-btn"
+                    data-note-id="<?php echo (int)$note['id']; ?>"><?php echo t('navigation.edit'); ?></button>
+            <button type="button" class="btn btn-outline-danger btn-sm"
+                    data-bs-toggle="modal"
+                    data-bs-target="#deleteNoteModal<?php echo (int)$note['id']; ?>"><?php echo t('navigation.delete'); ?></button>
+          </div>
+          <?php } ?>
         </div>
-        <?php if ($auth->can('edit', (int)$id)) { ?>
-        <div class="doNotPrint ms-2">
-          <button type="button" class="btn btn-outline-danger btn-sm"
-                  data-bs-toggle="modal"
-                  data-bs-target="#deleteNoteModal<?php echo (int)$note['id']; ?>"><?php echo t('navigation.delete'); ?></button>
-        </div>
-        <?php } ?>
+        <small class="text-muted">
+          <?php echo date('M j, Y g:ia', strtotime($note['created_at'])); ?>
+        </small>
       </div>
-      <small class="text-muted">
-        <?php echo date('M j, Y g:ia', strtotime($note['created_at'])); ?>
-      </small>
+      <!-- Edit mode (hidden by default) -->
+      <?php if ($auth->can('edit', (int)$id)) { ?>
+      <div class="note-edit d-none" id="noteEdit<?php echo (int)$note['id']; ?>">
+        <form method="post" action="note_handler.php">
+          <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+          <input type="hidden" name="action" value="edit">
+          <input type="hidden" name="rec_id" value="<?php echo (int)$id; ?>">
+          <input type="hidden" name="note_id" value="<?php echo (int)$note['id']; ?>">
+          <div class="mb-2">
+            <textarea class="form-control" name="note_text" rows="3" required><?php echo htmlspecialchars($note['text'], ENT_QUOTES, 'UTF-8'); ?></textarea>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary btn-sm"><?php echo t('navigation.save'); ?></button>
+            <button type="button" class="btn btn-secondary btn-sm note-cancel-btn"
+                    data-note-id="<?php echo (int)$note['id']; ?>"><?php echo t('navigation.cancel'); ?></button>
+          </div>
+        </form>
+      </div>
+      <?php } ?>
     </div>
   </div>
 
@@ -595,6 +619,22 @@ document.addEventListener('DOMContentLoaded', function() {
         const scaled = parsed * scale;
         return formatNumber(scaled) + origText.substring(matchStr.length);
     }
+
+    // --- Note inline edit toggle ---
+    document.querySelectorAll('.note-edit-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var noteId = this.dataset.noteId;
+            document.getElementById('noteDisplay' + noteId).classList.add('d-none');
+            document.getElementById('noteEdit' + noteId).classList.remove('d-none');
+        });
+    });
+    document.querySelectorAll('.note-cancel-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var noteId = this.dataset.noteId;
+            document.getElementById('noteEdit' + noteId).classList.add('d-none');
+            document.getElementById('noteDisplay' + noteId).classList.remove('d-none');
+        });
+    });
 
     // --- Scale button handler ---
     document.querySelectorAll('.scale-btn').forEach(function(btn) {

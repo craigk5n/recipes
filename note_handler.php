@@ -50,6 +50,27 @@ if ($action === 'add') {
   header("Location: $redirectUrl");
   exit;
 
+} elseif ($action === 'edit') {
+
+  $noteId = sanitizeInt($_POST['note_id'] ?? '');
+  $noteText = trim($_POST['note_text'] ?? '');
+  if (empty($noteId)) {
+    header("Location: $redirectUrl");
+    exit;
+  }
+  if (empty($noteText)) {
+    header("Location: $redirectUrl&error=" . urlencode("Note text cannot be empty."));
+    exit;
+  }
+
+  // Update with rec_id guard to prevent cross-recipe editing
+  Database::query("UPDATE rec_note SET note_text = ? WHERE note_id = ? AND rec_id = ?", [$noteText, $noteId, $recId]);
+
+  Database::query("UPDATE rec_recipe SET rec_last_updated = NOW() WHERE rec_id = ?", [$recId]);
+
+  header("Location: $redirectUrl");
+  exit;
+
 } elseif ($action === 'delete') {
 
   $noteId = sanitizeInt($_POST['note_id'] ?? '');
