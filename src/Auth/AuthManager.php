@@ -7,6 +7,7 @@ namespace Recipes\Auth;
 use Recipes\Database\Database;
 use Recipes\Config;
 use Recipes\I18n\Translator;
+use Recipes\Security\Security;
 use function Recipes\I18n\t;
 
 class AuthManager
@@ -132,15 +133,7 @@ class AuthManager
 
     public function logout(): void
     {
-        $_SESSION = [];
-        if (ini_get("session.use_cookies")) {
-            $params = session_get_cookie_params();
-            setcookie(session_name(), '', time() - 42000,
-                $params["path"], $params["domain"],
-                $params["secure"], $params["httponly"]
-            );
-        }
-        session_destroy();
+        Security::destroySession();
     }
 
     public function getCurrentUser(): ?array

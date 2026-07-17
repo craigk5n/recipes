@@ -39,7 +39,7 @@ if (session_status() === PHP_SESSION_NONE) {
 // These functions are kept for backward compatibility.
 // New code should use the Security class directly.
 
-function destroySession()
+function destroySession(): void
 {
     Security::destroySession();
 }

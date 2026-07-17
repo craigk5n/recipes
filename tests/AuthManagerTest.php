@@ -120,6 +120,22 @@ final class AuthManagerTest extends TestCase
         $this->assertTrue($auth->can('admin'));
     }
 
+    public function testLogoutClearsTheSession(): void
+    {
+        putenv('AUTH_MODE=user');
+        $auth = new AuthManager();
+
+        $_SESSION['user_id'] = 123;
+        $_SESSION['username'] = 'testuser';
+        $_SESSION['is_admin'] = 0;
+
+        $auth->logout();
+
+        $this->assertSame([], $_SESSION);
+        $this->assertNull($auth->getCurrentUser());
+        $this->assertFalse($auth->can('edit'));
+    }
+
     public function testUserModeOwnershipCheckForOwner(): void
     {
         putenv('AUTH_MODE=user');

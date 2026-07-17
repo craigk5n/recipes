@@ -1,7 +1,40 @@
 <?php
 use PHPUnit\Framework\TestCase;
+use Recipes\Security\Security;
 
 class SecurityTest extends TestCase {
+    public function testDestroySessionClearsDataAndEndsSession() {
+        // Regression: the destroySession() shim delegated to
+        // Security::destroySession(), which was never ported to the class
+        // during the PSR-4 refactor, so calling it was a fatal error.
+        $this->assertTrue(method_exists(Security::class, 'destroySession'));
+
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            session_start();
+        }
+        $_SESSION['user_id'] = 42;
+
+        destroySession();
+
+        $this->assertSame([], $_SESSION);
+        $this->assertSame(PHP_SESSION_NONE, session_status());
+
+        // Restore the session the bootstrap started, so this test leaves global
+        // state as it found it for whatever runs next.
+        session_start();
+    }
+
+    public function testDestroySessionIsSafeWhenNoSessionIsActive() {
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_destroy();
+        }
+
+        destroySession(); // must not warn or fatal
+
+        $this->assertSame(PHP_SESSION_NONE, session_status());
+        session_start();
+    }
+
     public function testSanitizeString() {
         $input = " <script>alert('xss')</script> ";
         $expected = "&lt;script&gt;alert(&#039;xss&#039;)&lt;/script&gt;";

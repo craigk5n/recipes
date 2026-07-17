@@ -10,6 +10,37 @@ use RuntimeException;
 class Security
 {
     /**
+     * Destroy the current session: clear its data, expire the browser cookie,
+     * and discard the server-side session file.
+     */
+    public static function destroySession(): void
+    {
+        $_SESSION = [];
+
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            return;
+        }
+
+        // Expire the cookie using the attributes it was set with. Passing
+        // different ones leaves the original cookie in place, since browsers
+        // match on name + path + domain.
+        if (ini_get('session.use_cookies') && isset($_COOKIE[session_name()])) {
+            $params = session_get_cookie_params();
+            setcookie(session_name(), '', [
+                'expires' => time() - 3600,
+                'path' => $params['path'],
+                'domain' => $params['domain'],
+                'secure' => $params['secure'],
+                'httponly' => $params['httponly'],
+                'samesite' => $params['samesite'] ?: 'Strict',
+            ]);
+            unset($_COOKIE[session_name()]);
+        }
+
+        session_destroy();
+    }
+
+    /**
      * Generate CSRF token.
      */
     public static function generateCsrfToken(): string
