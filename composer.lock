@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0770a5990a99c1880d97a77eec754d90",
+    "content-hash": "f1fcc8febe5c40d8f93cf0186e7d951c",
     "packages": [
         {
             "name": "sortablejs/sortablejs",
@@ -1875,7 +1875,7 @@
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
-        "php": ">=7.4"
+        "php": ">=8.1"
     },
     "platform-dev": [],
     "plugin-api-version": "2.2.0"

@@ -2,7 +2,8 @@
 
 A lightweight, standalone PHP recipe management application built with Bootstrap 5 and PDO.
 
-![PHP Version](https://img.shields.io/badge/php-%3E%3D7.4-8892bf.svg)
+[![CI](https://github.com/craigk5n/recipes/actions/workflows/ci.yml/badge.svg)](https://github.com/craigk5n/recipes/actions/workflows/ci.yml)
+![PHP Version](https://img.shields.io/badge/php-%3E%3D8.1-8892bf.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 k5n Recipes allows you to manage your personal recipe collection with ease. It features recipe importing from structured web data, photo management, and a clean, responsive UI.
@@ -21,7 +22,7 @@ k5n Recipes allows you to manage your personal recipe collection with ease. It f
 ## Installation
 
 ### Prerequisites
-- PHP 7.4 or higher
+- PHP 8.1 or higher (the recipe category and unit enums require it)
 - MySQL or MariaDB
 - Apache or Nginx
 
