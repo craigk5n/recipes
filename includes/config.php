@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file loads configuration settings from environment variables or
  * the data file settings.php and sets up some needed variables.
@@ -31,7 +32,8 @@ if (!defined('APP_ENV')) {
 
 // Global functions for backward compatibility for some config-related calls
 if (!function_exists('die_miserable_death')) {
-    function die_miserable_death(string $error) {
+    function die_miserable_death(string $error)
+    {
         // This function is still in includes/security.php, so we'll call it there.
         // It will eventually delegate to Recipes\Security\Security::handleError
         // For now, assume includes/security.php has been loaded and define a fallback.

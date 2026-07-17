@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Security helpers for BookLog.
  * This file is now a shim that delegates to the Recipes\Security\Security class.
@@ -38,15 +39,51 @@ if (session_status() === PHP_SESSION_NONE) {
 // These functions are kept for backward compatibility.
 // New code should use the Security class directly.
 
-function destroySession() { Security::destroySession(); }
-function generateCsrfToken(): string { return Security::generateCsrfToken(); }
-function validateCsrfToken(string $token): bool { return Security::validateCsrfToken($token); }
-function sanitizeString($input): string { return Security::sanitizeString((string)$input); }
-function sanitizeInt($input): int { return Security::sanitizeInt($input); }
-function sanitizeEmail($input): string { return Security::sanitizeEmail((string)$input); }
-function generateSecureToken(int $length = 32): string { return Security::generateSecureToken($length); }
-function setSecurityHeaders(): void { Security::setSecurityHeaders(); }
-function handleError(string $error, int $status = 500): void { Security::handleError($error, $status); }
-function checkRateLimit(string $action, int $maxRequests, int $windowSeconds): bool { return Security::checkRateLimit($action, $maxRequests, $windowSeconds); }
-function enforceRateLimit(string $action, int $maxRequests, int $windowSeconds): void { Security::enforceRateLimit($action, $maxRequests, $windowSeconds); }
-function die_miserable_death($error) { Security::handleError($error, 500); }
+function destroySession()
+{
+    Security::destroySession();
+}
+function generateCsrfToken(): string
+{
+    return Security::generateCsrfToken();
+}
+function validateCsrfToken(string $token): bool
+{
+    return Security::validateCsrfToken($token);
+}
+function sanitizeString($input): string
+{
+    return Security::sanitizeString((string)$input);
+}
+function sanitizeInt($input): int
+{
+    return Security::sanitizeInt($input);
+}
+function sanitizeEmail($input): string
+{
+    return Security::sanitizeEmail((string)$input);
+}
+function generateSecureToken(int $length = 32): string
+{
+    return Security::generateSecureToken($length);
+}
+function setSecurityHeaders(): void
+{
+    Security::setSecurityHeaders();
+}
+function handleError(string $error, int $status = 500): void
+{
+    Security::handleError($error, $status);
+}
+function checkRateLimit(string $action, int $maxRequests, int $windowSeconds): bool
+{
+    return Security::checkRateLimit($action, $maxRequests, $windowSeconds);
+}
+function enforceRateLimit(string $action, int $maxRequests, int $windowSeconds): void
+{
+    Security::enforceRateLimit($action, $maxRequests, $windowSeconds);
+}
+function die_miserable_death($error)
+{
+    Security::handleError($error, 500);
+}
