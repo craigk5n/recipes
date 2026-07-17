@@ -89,9 +89,14 @@ class Database
             // Very basic heuristic: check if the SQL contains a common ownership check pattern
             // and if the key is in the params.
             if (str_contains($sql, 'FROM rec_recipe WHERE rec_id = ?') && in_array($key, $params)) {
-                // To satisfy PDOStatement|bool return type, return a simple mock object with fetchNumCalls and returnValues
-                $stmt = (new class extends PDOStatement {});
-                $stmt->fetchNumCalls = 0;
+                // To satisfy PDOStatement|bool return type, return a simple mock object with fetchNumCalls and returnValues.
+                // The properties are declared rather than assigned dynamically: PHP 8.2 deprecates
+                // dynamic properties and PHP 9 will make them a fatal error.
+                $stmt = new class extends PDOStatement {
+                    public int $fetchNumCalls = 0;
+                    /** @var array<int, array<int, mixed>> */
+                    public array $returnValues = [];
+                };
                 $stmt->returnValues = $mockResult->returnValues;
                 return $stmt;
             }
