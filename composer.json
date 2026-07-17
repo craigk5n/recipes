@@ -50,9 +50,10 @@
     },
     "scripts": {
         "test": "phpunit",
-        "phpcs": "phpcs --standard=PSR12 includes/",
+        "phpcs": "phpcs",
+        "phpcbf": "phpcbf",
         "phpstan": "phpstan analyse includes/ src/ --level=5",
-        "lint": "phpcs --standard=PSR12 includes/ && phpstan analyse includes/ src/ --level=5",
+        "lint": "phpcs && phpstan analyse includes/ src/ --level=5",
         "install-assets": "php scripts/install-assets.php",
         "post-install-cmd": [
             "@install-assets"
