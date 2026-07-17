@@ -371,9 +371,17 @@ document.addEventListener('DOMContentLoaded', function() {
         applyFilter();
     });
 
+    // Restore saved sort order from localStorage
+    var savedSort = localStorage.getItem('recipeSortOrder');
+    if (savedSort) {
+        document.getElementById('sortSelect').value = savedSort;
+        applySort();
+    }
+
     document.getElementById('searchInput').addEventListener('keyup', applyFilter);
     document.getElementById('categoryFilter').addEventListener('change', applyFilter);
     document.getElementById('sortSelect').addEventListener('change', function() {
+        localStorage.setItem('recipeSortOrder', this.value);
         applySort();
         applyFilter();
     });
