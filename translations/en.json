@@ -36,7 +36,9 @@
     "last_updated": "Last Updated",
     "created": "Created",
     "import": "Import Recipe",
-    "import_from_url": "Import from URL"
+    "import_from_url": "Import from URL",
+    "paste": "Paste Recipe",
+    "paste_description": "Paste recipe text below. The title should be on the first line, followed by ingredients and instructions. Section headings (Ingredients, Instructions) are detected automatically, or sections are inferred from the text structure."
   },
   
   "ingredient": {

@@ -43,6 +43,9 @@ $current_page = basename($_SERVER['PHP_SELF']);
         <li class="nav-item">
           <a class="nav-link" href="import.php"><?php echo t('recipe.import'); ?></a>
         </li>
+        <li class="nav-item">
+          <a class="nav-link" href="paste.php"><?php echo t('recipe.paste'); ?></a>
+        </li>
         <?php } ?>
       </ul>
       <ul class="navbar-nav ms-auto">
