@@ -13,5 +13,12 @@ pub/*
 # Logs
 logs/
 
+# PHP session files (see session.save_path in includes/security.php)
+storage/sessions/*
+!storage/sessions/.gitkeep
+
+# PHPUnit local test-run cache
+.phpunit.cache/
+
 # Documentation for Claude
 .claude/

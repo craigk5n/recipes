@@ -23,13 +23,21 @@ if (!getAuthManager()->can('edit')) {
   die_miserable_death("Unauthorized.");
 }
 
-// Validate CSRF token
-if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
-  die_miserable_death("Invalid CSRF token.");
-}
-
+// Validate CSRF token. If it fails, the user most likely loaded the form a long
+// time ago and their session expired — redirect them back to the recipe with a
+// friendly "please try again" message instead of a bare 500 page. We need the
+// recipe id for a useful redirect, so resolve it first.
 $action = $_POST['action'] ?? '';
 $recId = sanitizeInt($_POST['rec_id'] ?? '');
+
+if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
+  $target = !empty($recId) ? ("view.php?id=" . (int)$recId) : "index.php";
+  $sep = str_contains($target, '?') ? '&' : '?';
+  header("Location: " . $target . $sep . "error=" . urlencode(
+    "Your session expired. Please reload the page and try uploading again."
+  ));
+  exit;
+}
 
 if (empty($recId)) {
   header("Location: index.php");

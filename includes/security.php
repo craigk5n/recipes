@@ -11,7 +11,24 @@ $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERV
 ini_set('session.cookie_httponly', '1');
 ini_set('session.cookie_secure', $isHttps ? '1' : '0');
 ini_set('session.cookie_samesite', 'Strict');
-ini_set('session.gc_maxlifetime', '1800'); // 30 minutes
+
+// Move sessions out from under Debian/Ubuntu's system-wide session cleanup cron.
+// The default save_path (/var/lib/php/sessions) is garbage-collected every 30 min
+// by /etc/cron.d/php using the php.ini gc_maxlifetime (1440s by default), which
+// ignores any runtime ini_set() we do here. That was silently expiring sessions
+// after ~24 min and turning legitimate form submissions into "Invalid CSRF token"
+// failures. Using an app-owned directory lets our gc_maxlifetime actually apply.
+$sessionDir = dirname(__DIR__) . '/storage/sessions';
+if (is_dir($sessionDir) && is_writable($sessionDir)) {
+    ini_set('session.save_path', $sessionDir);
+    // The app-owned dir is mode 1733 so www-data can write but cannot scandir(),
+    // which means PHP's own GC can't enumerate files. Disable probabilistic GC
+    // to avoid warnings; stale files accumulate harmlessly and can be pruned
+    // out-of-band (e.g. by a periodic find -mtime command).
+    ini_set('session.gc_probability', '0');
+}
+ini_set('session.gc_maxlifetime', '14400');     // 4 hours
+ini_set('session.cookie_lifetime', '14400');    // 4 hours
 
 // Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
