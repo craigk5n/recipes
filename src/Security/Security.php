@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Recipes\Security;
 
+use Exception;
 use Recipes\Config;
 use RuntimeException;
 

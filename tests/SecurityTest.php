@@ -35,6 +35,19 @@ class SecurityTest extends TestCase {
         session_start();
     }
 
+    public function testGenerateSecureTokenReturnsHexOfRequestedByteLength() {
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{64}$/', generateSecureToken());
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{16}$/', generateSecureToken(8));
+        $this->assertNotEquals(generateSecureToken(), generateSecureToken());
+    }
+
+    public function testGenerateSecureTokenRejectsInvalidLength() {
+        // A bad argument is a programming error, so it must surface as-is
+        // rather than be wrapped as "could not generate secure token".
+        $this->expectException(ValueError::class);
+        generateSecureToken(0);
+    }
+
     public function testSanitizeString() {
         $input = " <script>alert('xss')</script> ";
         $expected = "&lt;script&gt;alert(&#039;xss&#039;)&lt;/script&gt;";
