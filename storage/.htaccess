@@ -1,0 +1,21 @@
+# Deny everything under storage/.
+#
+# Sessions now live at SESSION_SAVE_PATH, outside the web root — see
+# includes/security.php. This guard remains because every path in this project
+# is web-served (there is no public/ subdirectory), so anything that ever lands
+# here would otherwise be fetchable over HTTP.
+#
+# Do not rely on this alone: it only applies where AllowOverride permits
+# .htaccess, which is NOT the Debian/Ubuntu default for /var/www. Keep the
+# session directory outside the web root.
+
+# Apache 2.4+
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+
+# Apache 2.2
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>

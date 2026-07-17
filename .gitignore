@@ -13,9 +13,10 @@ pub/*
 # Logs
 logs/
 
-# PHP session files (see session.save_path in includes/security.php)
-storage/sessions/*
-!storage/sessions/.gitkeep
+# storage/ is not used by default — sessions live at SESSION_SAVE_PATH, outside
+# the web root. Ship only the deny-all guard, never any file written here.
+storage/*
+!storage/.htaccess
 
 # PHPUnit local test-run cache
 .phpunit.cache/
