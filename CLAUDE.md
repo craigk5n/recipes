@@ -87,7 +87,7 @@ Database::freeResult($res);
 
 ## Gotchas
 
-- **Linting/analysis scope:** `composer phpcs`, `composer phpstan`, and PHPUnit coverage all target `includes/` only — `src/` is not yet covered by these checks.
+- **Linting/analysis scope:** `composer phpstan` analyses `includes/` and `src/` (level 5, currently clean — keep it that way). `composer phpcs` still targets `includes/` only, so `src/` is not style-checked. `includes/settings.php` is generated and gitignored; it stores values inside a comment block that `Config::parseLegacySettingsFile()` reads by regex, so don't run phpcbf over it.
 - **PHP version mismatch:** `composer.json` declares `>=7.4`, but enums in `src/Recipe/` and `src/I18n/` require PHP 8.1+. CI runs on PHP 8.2.
 - **Parent site dependency:** Pages include `../header.php`, `../trailer.php`, and `../style.css` — the app won't render properly without these files from the parent intranet site.
 - **Timezone:** `rec_includes.php` hardcodes `America/New_York`.

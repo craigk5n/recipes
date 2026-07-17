@@ -24,10 +24,11 @@ class Database
      * Set a mock query result for testing Database::query and fetchRow.
      * This is intended for unit testing where a real DB connection is not desired.
      * The key is typically the recipe_id or user_id for ownership checks.
+     *
+     * @param object $result An object carrying a $returnValues array of rows.
      */
     public static function setMockQueryResult(int $key, object $result): void
     {
-        $result->fetchNumCalls = 0; // Initialize for fetchRow tracking
         self::$mockQueryResults[$key] = $result;
     }
 
@@ -89,16 +90,7 @@ class Database
             // Very basic heuristic: check if the SQL contains a common ownership check pattern
             // and if the key is in the params.
             if (str_contains($sql, 'FROM rec_recipe WHERE rec_id = ?') && in_array($key, $params)) {
-                // To satisfy PDOStatement|bool return type, return a simple mock object with fetchNumCalls and returnValues.
-                // The properties are declared rather than assigned dynamically: PHP 8.2 deprecates
-                // dynamic properties and PHP 9 will make them a fatal error.
-                $stmt = new class extends PDOStatement {
-                    public int $fetchNumCalls = 0;
-                    /** @var array<int, array<int, mixed>> */
-                    public array $returnValues = [];
-                };
-                $stmt->returnValues = $mockResult->returnValues;
-                return $stmt;
+                return new MockStatement($mockResult->returnValues);
             }
         }
         
@@ -119,13 +111,8 @@ class Database
     public static function fetchRow(?PDOStatement $stmt): array|bool
     {
         // For mock results, we return pre-defined values
-        if (isset($stmt->returnValues)) {
-            if ($stmt->fetchNumCalls < count($stmt->returnValues)) {
-                $row = $stmt->returnValues[$stmt->fetchNumCalls];
-                $stmt->fetchNumCalls++;
-                return $row;
-            }
-            return false;
+        if ($stmt instanceof MockStatement) {
+            return $stmt->nextRow();
         }
 
         if ($stmt) {

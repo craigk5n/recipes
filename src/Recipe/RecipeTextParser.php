@@ -98,17 +98,13 @@ class RecipeTextParser
             return ['qty' => '', 'unit' => '', 'name' => '', 'prep' => ''];
         }
 
-        // Handle case-sensitive unit abbreviations before any normalization
-        $caseSensitiveUnit = '';
+        // Handle case-sensitive unit abbreviations before any normalization.
+        // The [TtC] character class only matches keys the map defines.
         $csPattern = '/^(\d+[\d\s\/\.]*?)\s+([TtC])\s+/';
         if (preg_match($csPattern, $line, $csMatch)) {
-            $abbrev = $csMatch[2];
-            if (isset(self::CASE_SENSITIVE_UNITS[$abbrev])) {
-                $caseSensitiveUnit = self::CASE_SENSITIVE_UNITS[$abbrev];
-                $qty = trim($csMatch[1]);
-                $remainder = substr($line, strlen($csMatch[0]));
-                return self::splitNamePrep($qty, $caseSensitiveUnit, $remainder);
-            }
+            $qty = trim($csMatch[1]);
+            $remainder = substr($line, strlen($csMatch[0]));
+            return self::splitNamePrep($qty, self::CASE_SENSITIVE_UNITS[$csMatch[2]], $remainder);
         }
 
         // Normalize Unicode fractions

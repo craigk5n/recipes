@@ -368,7 +368,8 @@ class Translator
  * These wrap the modern Translator class
  */
 
-/** @var Translator|null */
+// Holds the Translator singleton, or null until initTranslator() builds it.
+// See the note in Auth/AuthManager.php on why this is not a @var docblock.
 $GLOBALS['_translator_instance'] = null;
 
 /**

@@ -153,7 +153,9 @@ class AuthManager
  * Global helper functions for Auth
  */
 
-/** @var AuthManager|null */
+// Holds the AuthManager singleton, or null until getAuthManager() builds it.
+// Not a @var docblock: the tag is only honoured above a plain variable
+// assignment, so on a $GLOBALS entry it does nothing but trip static analysis.
 $GLOBALS['_auth_manager_instance'] = null;
 
 function getAuthManager(): AuthManager

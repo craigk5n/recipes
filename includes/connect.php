@@ -12,15 +12,11 @@ if (! empty($PHP_SELF) && preg_match("/\/includes\//", $PHP_SELF)) {
 
 use Recipes\Database\Database;
 
-// Establish a database connection using PDO.
+// Establish a database connection using PDO. Database::connect() either returns
+// a live PDO or reports the failure and halts on its own, so there is no falsy
+// return left for this file to check.
 if (empty($c)) {
     $c = Database::connect();
-    if (! $c) {
-        die_miserable_death(
-            "Error connecting to database:<blockquote>" .
-            Database::error() . "</blockquote>\n"
-        );
-    }
 }
 
 if (empty($PHP_SELF)) {

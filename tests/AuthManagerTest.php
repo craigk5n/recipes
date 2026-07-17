@@ -194,8 +194,7 @@ final class AuthManagerTest extends TestCase
     {
         // For testing purposes, we need to mock the Database::query call
         // This is a simplified mock; a full solution would use a mocking framework like Mockery/Prophecy
-        $mockResult = (object)[]; // PDOStatement object
-        $mockResult->fetchNumCalls = 0;
+        $mockResult = (object)[];
         $mockResult->returnValues = [
             [$ownerId] // Simulate row with user_id
         ];
