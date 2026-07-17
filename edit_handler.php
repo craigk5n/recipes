@@ -44,6 +44,18 @@ $now = date('Y-m-d H:i:s');
 Database::beginTransaction();
 
 try {
+  // Check if user_id column exists (auth migration may not have been run)
+  $currentUser = $auth->getCurrentUser();
+  $userId = $currentUser ? $currentUser['id'] : null;
+  $hasUserIdCol = false;
+  $colCheck = Database::query("SHOW COLUMNS FROM rec_recipe LIKE 'user_id'");
+  if ($colCheck && Database::fetchRow($colCheck)) {
+    $hasUserIdCol = true;
+  }
+  if ($colCheck) {
+    Database::freeResult($colCheck);
+  }
+
   if ($isNew) {
     // Get next ID
     $res = Database::query("SELECT MAX(rec_id) FROM rec_recipe");
@@ -52,19 +64,34 @@ try {
     Database::freeResult($res);
 
     // Insert recipe
-    $currentUser = $auth->getCurrentUser();
-    $userId = $currentUser ? $currentUser['id'] : null;
+    if ($hasUserIdCol) {
+      Database::query(
+        "INSERT INTO rec_recipe (rec_id, rec_title, rec_last_updated, rec_date_added, rec_source, rec_url, rec_category, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [$id, $recTitle, $now, $now, $recSource, $recUrl, $finalCategory, $userId]
+      );
+    } else {
+      Database::query(
+        "INSERT INTO rec_recipe (rec_id, rec_title, rec_last_updated, rec_date_added, rec_source, rec_url, rec_category) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [$id, $recTitle, $now, $now, $recSource, $recUrl, $finalCategory]
+      );
+    }
 
-    Database::query(
-      "INSERT INTO rec_recipe (rec_id, rec_title, rec_last_updated, rec_date_added, rec_source, rec_url, rec_category, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-      [$id, $recTitle, $now, $now, $recSource, $recUrl, $finalCategory, $userId]
-    );
+    // Clean up any orphaned data from a previously deleted recipe with this ID
+    Database::query("DELETE FROM rec_ingr WHERE rec_id = ?", [$id]);
+    Database::query("DELETE FROM rec_instructions WHERE rec_id = ?", [$id]);
   } else {
     // Update recipe
-    Database::query(
-      "UPDATE rec_recipe SET rec_title = ?, rec_last_updated = ?, rec_source = ?, rec_url = ?, rec_category = ? WHERE rec_id = ? AND user_id = ?",
-      [$recTitle, $now, $recSource, $recUrl, $finalCategory, $id, $userId]
-    );
+    if ($hasUserIdCol) {
+      Database::query(
+        "UPDATE rec_recipe SET rec_title = ?, rec_last_updated = ?, rec_source = ?, rec_url = ?, rec_category = ? WHERE rec_id = ? AND user_id = ?",
+        [$recTitle, $now, $recSource, $recUrl, $finalCategory, $id, $userId]
+      );
+    } else {
+      Database::query(
+        "UPDATE rec_recipe SET rec_title = ?, rec_last_updated = ?, rec_source = ?, rec_url = ?, rec_category = ? WHERE rec_id = ?",
+        [$recTitle, $now, $recSource, $recUrl, $finalCategory, $id]
+      );
+    }
 
     // Delete existing ingredients and instructions (will reinsert)
     Database::query("DELETE FROM rec_ingr WHERE rec_id = ?", [$id]);
