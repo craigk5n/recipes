@@ -39,14 +39,14 @@ CI runs all three checks (phpcs, phpstan, phpunit) on PHP 8.2 — see `.github/w
 
 ## Architecture
 
-**Request model:** Each page is a standalone PHP file that includes `rec_includes.php`, which bootstraps the application by loading config, PDO database layer, security helpers, utility functions, and translation support. Every new page must `include "rec_includes.php";` at the top.
+**Request model:** Each page is a standalone PHP file that includes `rec_includes.php`, which bootstraps the application by loading config, PDO database layer, security helpers, utility functions, and translation support. Every new page must `include "rec_includes.php";` at the top. Form submissions are handled by separate `*_handler.php` files (e.g., `edit_handler.php`, `delete_handler.php`, `photo_handler.php`).
 
 **Dual code structure (legacy + modern):** The codebase is migrating from procedural `includes/` files to PSR-4 namespaced classes in `src/` (namespace `Recipes\`). The `includes/` files now act as shims that delegate to the modern classes:
 - `includes/config.php` → `src/Config.php` (`Recipes\Config`)
 - `includes/pdo_db.php` → `src/Database/Database.php` (`Recipes\Database\Database`)
 - `includes/security.php` → `src/Security/Security.php` (`Recipes\Security\Security`)
 
-New code should use the `src/` classes directly. Legacy global functions (`dbi_query()`, `generateCsrfToken()`, `sanitizeString()`, etc.) still work via the shims.
+New code should use the `src/` classes directly. Legacy global functions (`dbi_query()`, `generateCsrfToken()`, `sanitizeString()`, etc.) still work via the shims. Note: `rec_includes.php` explicitly `require_once`s files containing standalone functions (e.g., `Translator.php`, `AuthManager.php`) because PSR-4 autoloading only handles classes, not functions.
 
 **Database layer:** `Recipes\Database\Database` is a static class wrapping PDO. All queries use parameterized prepared statements:
 ```php
@@ -67,12 +67,15 @@ Database::freeResult($res);
 
 **Configuration:** `Recipes\Config::get('KEY')` reads from `.env` file, environment variables, or legacy `includes/settings.php` (in that priority order).
 
+**Enums:** `src/Recipe/Category.php` and `src/Recipe/Unit.php` define PHP 8.1 enums for recipe categories (breakfast, lunch, dinner, etc.) and measurement units (cups, tbsp, oz, etc.), each with `fromLegacy()` and `label()` methods.
+
 **Database tables:**
-- `rec_recipe` — recipe metadata (rec_id, title, last_updated, source, user_id)
-- `rec_ingr` — ingredients (linked to recipe by rec_id, ordered by rec_ingr_num)
-- `rec_instructions` — cooking instructions (linked to recipe by rec_id)
-- `rec_users` — user accounts (id, username, password_hash, is_admin)
-- `rec_note` — recipe notes (id, rec_id, note_text, created_at, user_id)
+- `rec_recipe` — recipe metadata (rec_id, rec_title, rec_last_updated, rec_source, rec_url, rec_date_added, rec_favorite, rec_category, user_id)
+- `rec_ingr` — ingredients (rec_id, rec_ingr_num, rec_quantity, rec_quantity_type, rec_name, rec_prep)
+- `rec_instructions` — cooking instructions (rec_id, rec_instructions)
+- `rec_photo` — recipe photos stored as BLOBs (photo_id, rec_id, photo_data, original_name, mime_type, file_size, is_primary)
+- `rec_users` — user accounts (user_id, username, password_hash, email, is_admin)
+- `rec_note` — recipe notes (note_id, rec_id, note_text, created_at, user_id)
 
 **Database migrations:** Located in `scripts/migrate_*.php`, run automatically by `scripts/setup.php`.
 
@@ -81,3 +84,10 @@ Database::freeResult($res);
 **Parent site integration:** Pages include `../header.php`, `../trailer.php`, and `../style.css` from a parent directory (the broader intranet site).
 
 **Testing:** PHPUnit tests are in `tests/`. The test bootstrap (`tests/bootstrap.php`) loads autoloader and includes but skips the real database connection. Use `Database::setMockQueryResult()` / `Database::clearMockQueryResults()` for mocking DB queries in tests.
+
+## Gotchas
+
+- **Linting/analysis scope:** `composer phpcs`, `composer phpstan`, and PHPUnit coverage all target `includes/` only — `src/` is not yet covered by these checks.
+- **PHP version mismatch:** `composer.json` declares `>=7.4`, but enums in `src/Recipe/` and `src/I18n/` require PHP 8.1+. CI runs on PHP 8.2.
+- **Parent site dependency:** Pages include `../header.php`, `../trailer.php`, and `../style.css` — the app won't render properly without these files from the parent intranet site.
+- **Timezone:** `rec_includes.php` hardcodes `America/New_York`.
