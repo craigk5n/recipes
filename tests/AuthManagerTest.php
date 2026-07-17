@@ -6,25 +6,47 @@ namespace Recipes\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Recipes\Auth\AuthManager;
+use Recipes\Config;
 use Recipes\Database\Database;
 
 final class AuthManagerTest extends TestCase
 {
     protected function setUp(): void
     {
-        // Ensure a clean session for each test
-        $_SESSION = [];
-        // Clear environment variables that might interfere
-        unset($_ENV['AUTH_MODE']);
-        unset($_ENV['ACCESS_PIN']);
+        $this->resetAuthConfig();
         // Clear mock database results
         Database::clearMockQueryResults();
+    }
+
+    protected function tearDown(): void
+    {
+        // Don't leak this class's AUTH_MODE into other test classes.
+        $this->resetAuthConfig();
+    }
+
+    /**
+     * Return auth config to a pristine state.
+     *
+     * Config caches settings for the whole process, so without the reset every
+     * test after the first would silently reuse the first test's AUTH_MODE.
+     * The env vars are cleared through putenv() as well as $_ENV because
+     * Config::load() reads getenv() first, and loadEnvFile() overwrites $_ENV
+     * from any .env present — so $_ENV alone is not reliably in charge.
+     */
+    private function resetAuthConfig(): void
+    {
+        // Ensure a clean session for each test
+        $_SESSION = [];
+        putenv('AUTH_MODE');
+        putenv('ACCESS_PIN');
+        unset($_ENV['AUTH_MODE'], $_ENV['ACCESS_PIN']);
+        Config::reset();
     }
 
     public function testOpenModeAllowsAllActions(): void
     {
         // Set mode to open
-        $_ENV['AUTH_MODE'] = 'open';
+        putenv('AUTH_MODE=open');
 
         $auth = new AuthManager();
         $this->assertEquals('open', $auth->getMode());
@@ -37,8 +59,8 @@ final class AuthManagerTest extends TestCase
 
     public function testPinModeRestrictsActionsUntilUnlocked(): void
     {
-        $_ENV['AUTH_MODE'] = 'pin';
-        $_ENV['ACCESS_PIN'] = '1234';
+        putenv('AUTH_MODE=pin');
+        putenv('ACCESS_PIN=1234');
 
         $auth = new AuthManager();
         $this->assertEquals('pin', $auth->getMode());
@@ -62,7 +84,7 @@ final class AuthManagerTest extends TestCase
 
     public function testUserModeForRegularUser(): void
     {
-        $_ENV['AUTH_MODE'] = 'user';
+        putenv('AUTH_MODE=user');
         $auth = new AuthManager();
 
         // No one is logged in, all restricted actions should fail
@@ -83,7 +105,7 @@ final class AuthManagerTest extends TestCase
 
     public function testUserModeForAdminUser(): void
     {
-        $_ENV['AUTH_MODE'] = 'user';
+        putenv('AUTH_MODE=user');
         $auth = new AuthManager();
 
         // Simulate an admin user login
@@ -100,7 +122,7 @@ final class AuthManagerTest extends TestCase
 
     public function testUserModeOwnershipCheckForOwner(): void
     {
-        $_ENV['AUTH_MODE'] = 'user';
+        putenv('AUTH_MODE=user');
         $auth = new AuthManager();
 
         // Mock a recipe owned by user 123
@@ -118,7 +140,7 @@ final class AuthManagerTest extends TestCase
 
     public function testUserModeOwnershipCheckForNonOwner(): void
     {
-        $_ENV['AUTH_MODE'] = 'user';
+        putenv('AUTH_MODE=user');
         $auth = new AuthManager();
 
         // Mock a recipe owned by user 456
@@ -136,7 +158,7 @@ final class AuthManagerTest extends TestCase
 
     public function testUserModeOwnershipCheckForAdmin(): void
     {
-        $_ENV['AUTH_MODE'] = 'user';
+        putenv('AUTH_MODE=user');
         $auth = new AuthManager();
 
         // Mock a recipe owned by user 123

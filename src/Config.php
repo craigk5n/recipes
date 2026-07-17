@@ -55,6 +55,18 @@ class Config
     }
 
     /**
+     * Discard the cached settings so the next load() re-reads the environment.
+     *
+     * Settings are cached for the lifetime of the process, which suits a normal
+     * request but leaves tests stuck with whatever the first test happened to
+     * set. Call this between tests that vary AUTH_MODE, ACCESS_PIN, etc.
+     */
+    public static function reset(): void
+    {
+        self::$settings = null;
+    }
+
+    /**
      * Get a configuration setting.
      */
     public static function get(string $key, mixed $default = null): mixed
