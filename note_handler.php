@@ -3,6 +3,7 @@
 include "rec_includes.php";
 
 use Recipes\Database\Database;
+use Recipes\Security\Security;
 use function Recipes\Auth\getAuthManager;
 
 // Validate CSRF token
@@ -36,7 +37,8 @@ if ($action === 'add') {
 
   $noteText = trim($_POST['note_text'] ?? '');
   if (empty($noteText)) {
-    header("Location: $redirectUrl&error=" . urlencode("Note text cannot be empty."));
+    Security::flashError("Note text cannot be empty.");
+    header("Location: $redirectUrl");
     exit;
   }
 
@@ -59,7 +61,8 @@ if ($action === 'add') {
     exit;
   }
   if (empty($noteText)) {
-    header("Location: $redirectUrl&error=" . urlencode("Note text cannot be empty."));
+    Security::flashError("Note text cannot be empty.");
+    header("Location: $redirectUrl");
     exit;
   }
 

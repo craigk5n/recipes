@@ -12,6 +12,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         die_miserable_death("Invalid CSRF token.");
     }
 
+    // Brute-force protection: 10 attempts per 15 minutes per client IP.
+    // Fails closed: if the counter can't be stored, refuse rather than
+    // silently allowing unlimited guesses.
+    if ($action === 'login' || $action === 'unlock') {
+        enforceRateLimit('auth', 10, 900, true);
+    }
+
     if ($action === 'login') {
         $username = $_POST['username'] ?? '';
         $password = $_POST['password'] ?? '';
@@ -25,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'unlock') {
         $pin = $_POST['pin'] ?? '';
         if ($auth->unlockWithPin($pin)) {
-            header("Location: " . ($_POST['return_url'] ?? 'index.php'));
+            header("Location: " . \Recipes\Security\Security::localRedirect($_POST['return_url'] ?? null));
             exit;
         } else {
             header("Location: login.php?error=invalid_pin");

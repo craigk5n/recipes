@@ -6,6 +6,13 @@
 
 declare(strict_types=1);
 
+// Migrations change the schema; they run only from scripts/setup.php on the
+// command line, never from a web request.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
+
 include __DIR__ . "/../rec_includes.php";
 
 use Recipes\Database\Database;

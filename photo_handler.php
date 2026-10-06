@@ -3,6 +3,8 @@
 include "rec_includes.php";
 
 use Recipes\Database\Database;
+use Recipes\Security\Security;
+use Recipes\Media\ImageProcessor;
 use function Recipes\Auth\getAuthManager;
 
 // Detect if POST data was silently dropped due to exceeding post_max_size.
@@ -10,9 +12,15 @@ use function Recipes\Auth\getAuthManager;
 // confusing "Invalid CSRF token" error instead of a useful file size message.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_POST) && empty($_FILES)) {
   $maxSize = ini_get('post_max_size');
-  $referer = $_SERVER['HTTP_REFERER'] ?? 'index.php';
-  $sep = str_contains($referer, '?') ? '&' : '?';
-  header("Location: " . $referer . $sep . "error=" . urlencode("Upload failed: file exceeds the maximum size ({$maxSize}). Please choose a smaller file."));
+  // Go back to the page the upload came from, but only if it is one of ours.
+  $referer = parse_url($_SERVER['HTTP_REFERER'] ?? '');
+  $back = null;
+  $ourHost = parse_url('http://' . ($_SERVER['HTTP_HOST'] ?? ''), PHP_URL_HOST);
+  if (is_array($referer) && isset($referer['host']) && $referer['host'] === $ourHost) {
+    $back = basename($referer['path'] ?? '') . (isset($referer['query']) ? '?' . $referer['query'] : '');
+  }
+  Security::flashError("Upload failed: file exceeds the maximum size ({$maxSize}). Please choose a smaller file.");
+  header("Location: " . Security::localRedirect($back));
   exit;
 }
 
@@ -32,10 +40,8 @@ $recId = sanitizeInt($_POST['rec_id'] ?? '');
 
 if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
   $target = !empty($recId) ? ("view.php?id=" . (int)$recId) : "index.php";
-  $sep = str_contains($target, '?') ? '&' : '?';
-  header("Location: " . $target . $sep . "error=" . urlencode(
-    "Your session expired. Please reload the page and try uploading again."
-  ));
+  Security::flashError("Your session expired. Please reload the page and try uploading again.");
+  header("Location: " . $target);
   exit;
 }
 
@@ -69,7 +75,8 @@ if ($action === 'upload') {
     } elseif ($errorCode === UPLOAD_ERR_NO_FILE) {
       $msg = 'No file selected.';
     }
-    header("Location: $redirectUrl&error=" . urlencode($msg));
+    Security::flashError($msg);
+    header("Location: $redirectUrl");
     exit;
   }
 
@@ -79,81 +86,21 @@ if ($action === 'upload') {
 
   // Check file size (max 10MB)
   if ($fileSize > 10 * 1024 * 1024) {
-    header("Location: $redirectUrl&error=" . urlencode("File is too large. Maximum size is 10MB."));
+    Security::flashError("File is too large. Maximum size is 10MB.");
+    header("Location: $redirectUrl");
     exit;
   }
 
-  // Validate MIME type using finfo (not the client-supplied type)
-  $finfo = new finfo(FILEINFO_MIME_TYPE);
-  $mimeType = $finfo->file($tmpName);
-
-  $allowedMimes = [
-    'image/jpeg' => 'jpg',
-    'image/png'  => 'png',
-    'image/gif'  => 'gif',
-    'image/webp' => 'webp',
-  ];
-
-  if (!isset($allowedMimes[$mimeType])) {
-    header("Location: $redirectUrl&error=" . urlencode("Invalid file type. Allowed: JPG, PNG, GIF, WebP."));
+  // Validate by content (not the client-supplied type), refuse oversized
+  // canvases, and re-encode so only pixel data is stored.
+  $photo = ImageProcessor::normalize((string)file_get_contents($tmpName));
+  if ($photo === null) {
+    Security::flashError("Invalid image. Allowed: JPG, PNG, GIF, WebP.");
+    header("Location: $redirectUrl");
     exit;
   }
-
-  // Load image and resize if needed (max 1600px on longest side)
-  $maxDim = 1600;
-  $srcImage = null;
-  switch ($mimeType) {
-    case 'image/jpeg': $srcImage = imagecreatefromjpeg($tmpName); break;
-    case 'image/png':  $srcImage = imagecreatefrompng($tmpName); break;
-    case 'image/gif':  $srcImage = imagecreatefromgif($tmpName); break;
-    case 'image/webp': $srcImage = imagecreatefromwebp($tmpName); break;
-  }
-
-  if (!$srcImage) {
-    header("Location: $redirectUrl&error=" . urlencode("Failed to process image."));
-    exit;
-  }
-
-  $origW = imagesx($srcImage);
-  $origH = imagesy($srcImage);
-
-  if ($origW > $maxDim || $origH > $maxDim) {
-    if ($origW >= $origH) {
-      $newW = $maxDim;
-      $newH = (int)round($origH * ($maxDim / $origW));
-    } else {
-      $newH = $maxDim;
-      $newW = (int)round($origW * ($maxDim / $origH));
-    }
-    $dstImage = imagecreatetruecolor($newW, $newH);
-
-    // Preserve transparency for PNG and WebP
-    if ($mimeType === 'image/png' || $mimeType === 'image/webp') {
-      imagealphablending($dstImage, false);
-      imagesavealpha($dstImage, true);
-    }
-
-    imagecopyresampled($dstImage, $srcImage, 0, 0, 0, 0, $newW, $newH, $origW, $origH);
-    imagedestroy($srcImage);
-    $srcImage = $dstImage;
-  }
-
-  // Encode resized image to binary
-  ob_start();
-  switch ($mimeType) {
-    case 'image/jpeg': imagejpeg($srcImage, null, 85); break;
-    case 'image/png':  imagepng($srcImage, null, 6); break;
-    case 'image/gif':  imagegif($srcImage); break;
-    case 'image/webp': imagewebp($srcImage, null, 85); break;
-  }
-  $photoData = ob_get_clean();
-  imagedestroy($srcImage);
-
-  if (empty($photoData)) {
-    header("Location: $redirectUrl&error=" . urlencode("Failed to process image."));
-    exit;
-  }
-
+  $photoData = $photo['data'];
+  $mimeType = $photo['mime'];
   $fileSize = strlen($photoData);
 
   // Check if this is the first photo (auto-set as primary)
@@ -225,7 +172,8 @@ if ($action === 'upload') {
     Database::commit();
   } catch (Exception $e) {
     Database::rollback();
-    header("Location: $redirectUrl&error=" . urlencode("Failed to set primary photo."));
+    Security::flashError("Failed to set primary photo.");
+    header("Location: $redirectUrl");
     exit;
   }
 

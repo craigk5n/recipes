@@ -70,6 +70,97 @@ class SecurityTest extends TestCase {
         $this->assertFalse(validateCsrfToken("invalid_token"));
     }
 
+    private function withRateLimitDir(callable $test): void {
+        $dir = sys_get_temp_dir() . '/recipes-rl-test-' . bin2hex(random_bytes(4));
+        putenv("RATE_LIMIT_PATH=$dir");
+        \Recipes\Config::reset();
+        $_SERVER['REMOTE_ADDR'] = '203.0.113.7';
+        try {
+            $test($dir);
+        } finally {
+            array_map('unlink', glob("$dir/*") ?: []);
+            @rmdir($dir);
+            putenv('RATE_LIMIT_PATH');
+            \Recipes\Config::reset();
+            unset($_SERVER['REMOTE_ADDR']);
+        }
+    }
+
+    public function testRateLimitBlocksAfterMaxRequests() {
+        $this->withRateLimitDir(function () {
+            for ($i = 0; $i < 3; $i++) {
+                $this->assertTrue(Security::checkRateLimit('login', 3, 60));
+            }
+            $this->assertFalse(Security::checkRateLimit('login', 3, 60));
+        });
+    }
+
+    public function testRateLimitSurvivesLosingTheSession() {
+        $this->withRateLimitDir(function () {
+            for ($i = 0; $i < 3; $i++) {
+                Security::checkRateLimit('login', 3, 60);
+            }
+            $_SESSION = []; // attacker drops the session cookie
+            $this->assertFalse(Security::checkRateLimit('login', 3, 60));
+        });
+    }
+
+    public function testRateLimitIsPerClientAndPerAction() {
+        $this->withRateLimitDir(function () {
+            for ($i = 0; $i < 3; $i++) {
+                Security::checkRateLimit('login', 3, 60);
+            }
+            $this->assertTrue(Security::checkRateLimit('import', 3, 60));
+            $_SERVER['REMOTE_ADDR'] = '198.51.100.9';
+            $this->assertTrue(Security::checkRateLimit('login', 3, 60));
+        });
+    }
+
+    public function testRateLimitGroupsIpv6ClientsByPrefix() {
+        $this->withRateLimitDir(function () {
+            $_SERVER['REMOTE_ADDR'] = '2001:4860:1:2::a';
+            for ($i = 0; $i < 3; $i++) {
+                Security::checkRateLimit('login', 3, 60);
+            }
+            // Same /64, different interface id: still the same client.
+            $_SERVER['REMOTE_ADDR'] = '2001:4860:1:2:ffff::b';
+            $this->assertFalse(Security::checkRateLimit('login', 3, 60));
+        });
+    }
+
+    public function testRateLimitCanFailClosed() {
+        putenv('RATE_LIMIT_PATH=/proc/no-such-dir/recipes');
+        \Recipes\Config::reset();
+        try {
+            $this->assertTrue(Security::checkRateLimit('import', 3, 60));
+            $this->assertFalse(Security::checkRateLimit('auth', 3, 60, true));
+        } finally {
+            putenv('RATE_LIMIT_PATH');
+            \Recipes\Config::reset();
+        }
+    }
+
+    public function testRateLimitStateIsNotKeptInWebRoot() {
+        $this->withRateLimitDir(function (string $dir) {
+            Security::checkRateLimit('login', 3, 60);
+            $this->assertNotEmpty(glob("$dir/*"));
+        });
+    }
+
+    public function testLocalRedirectKeepsAppRelativePaths() {
+        $this->assertSame('view.php?id=3', Security::localRedirect('view.php?id=3'));
+        $this->assertSame('index.php', Security::localRedirect('index.php'));
+    }
+
+    public function testLocalRedirectRejectsOffsiteTargets() {
+        foreach ([
+            'https://evil.example/', '//evil.example/', '/\\evil.example', '\\\\evil.example',
+            'javascript:alert(1)', "view.php\r\nSet-Cookie: x=1", "view.php\n", '', null, '/etc/passwd', '../admin.php',
+        ] as $target) {
+            $this->assertSame('index.php', Security::localRedirect($target), var_export($target, true));
+        }
+    }
+
     public function testIsHttpUrlAcceptsWebUrls() {
         $this->assertTrue(Security::isHttpUrl('https://example.com/recipe/'));
         $this->assertTrue(Security::isHttpUrl('HTTP://example.com'));
