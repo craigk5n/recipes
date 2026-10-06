@@ -72,7 +72,16 @@ class Config
     public static function get(string $key, mixed $default = null): mixed
     {
         self::load(); // Ensure settings are loaded
-        return self::$settings[$key] ?? $default;
+        if (isset(self::$settings[$key])) {
+            return self::$settings[$key];
+        }
+        // Keys load() doesn't copy in (SESSION_SAVE_PATH, LOG_PATH, ...) come
+        // straight from the environment, which .env has already populated.
+        $env = getenv($key);
+        if ($env !== false && $env !== '') {
+            return $env;
+        }
+        return $_ENV[$key] ?? $default;
     }
 
     /**
