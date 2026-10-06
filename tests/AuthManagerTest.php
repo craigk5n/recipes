@@ -82,6 +82,28 @@ final class AuthManagerTest extends TestCase
         $this->assertTrue($auth->can('admin')); // Pin unlocks everything for the session
     }
 
+    public function testPinUnlockRejectsPartialAndEmptyPins(): void
+    {
+        putenv('AUTH_MODE=pin');
+        putenv('ACCESS_PIN=1234');
+        $auth = new AuthManager();
+
+        $this->assertFalse($auth->unlockWithPin('123'));
+        $this->assertFalse($auth->unlockWithPin('12345'));
+        $this->assertFalse($auth->unlockWithPin(''));
+        $this->assertFalse($auth->can('edit'));
+    }
+
+    public function testPinUnlockNeverSucceedsWhenNoPinConfigured(): void
+    {
+        putenv('AUTH_MODE=pin');
+        putenv('ACCESS_PIN');
+        $auth = new AuthManager();
+
+        $this->assertFalse($auth->unlockWithPin(''));
+        $this->assertFalse($auth->can('edit'));
+    }
+
     public function testUserModeForRegularUser(): void
     {
         putenv('AUTH_MODE=user');

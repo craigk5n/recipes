@@ -1,6 +1,7 @@
 <?php
 
 use Recipes\Recipe\RecipeTextParser;
+use Recipes\Http\SafeHttpClient;
 use Recipes\Security\Security;
 
 /**
@@ -29,32 +30,12 @@ function importRecipeFromUrl($url)
 }
 
 /**
- * Fetch URL content via curl.
+ * Fetch a recipe page. Internal addresses are refused (see SafeHttpClient).
  */
 function _fetchUrl($url)
 {
-    $ch = curl_init();
-    curl_setopt_array($ch, [
-    CURLOPT_URL            => $url,
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_FOLLOWLOCATION => true,
-    CURLOPT_MAXREDIRS      => 5,
-    CURLOPT_TIMEOUT        => 15,
-    CURLOPT_CONNECTTIMEOUT => 10,
-    CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; RecipeImporter/1.0)',
-    CURLOPT_SSL_VERIFYPEER => true,
-    CURLOPT_ENCODING       => '',  // accept any encoding
-    ]);
-
-    $html = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($html === false || $httpCode < 200 || $httpCode >= 400) {
-        return null;
-    }
-
-    return $html;
+    $response = (new SafeHttpClient())->fetch($url, 5 * 1024 * 1024);
+    return $response === null ? null : $response['body'];
 }
 
 /**

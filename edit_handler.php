@@ -3,6 +3,8 @@
 include "rec_includes.php";
 
 use Recipes\Database\Database;
+use Recipes\Http\SafeHttpClient;
+use Recipes\Media\ImageProcessor;
 use function Recipes\Auth\getAuthManager;
 use Recipes\Recipe\Category;
 use Recipes\Recipe\RecipeTextParser;
@@ -161,73 +163,14 @@ try {
 // If an image URL was provided (from import), download and store it as a photo
 $imageUrl = trim($_POST['image_url'] ?? '');
 if (!empty($imageUrl) && Security::isHttpUrl($imageUrl)) {
-  $ch = curl_init();
-  curl_setopt_array($ch, [
-    CURLOPT_URL            => $imageUrl,
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_FOLLOWLOCATION => true,
-    CURLOPT_MAXREDIRS      => 5,
-    CURLOPT_TIMEOUT        => 15,
-    CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; RecipeImporter/1.0)',
-    CURLOPT_SSL_VERIFYPEER => true,
-  ]);
-  $imageData = curl_exec($ch);
-  $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-  $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
-  curl_close($ch);
-
-  if ($imageData !== false && $httpCode >= 200 && $httpCode < 400) {
-    // Validate it's actually an image using finfo on the raw data
-    $finfo = new finfo(FILEINFO_MIME_TYPE);
-    $mimeType = $finfo->buffer($imageData);
-    $allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-
-    if (in_array($mimeType, $allowedMimes)) {
-      // Resize if needed (max 1600px)
-      $maxDim = 1600;
-      $srcImage = imagecreatefromstring($imageData);
-      if ($srcImage) {
-        $origW = imagesx($srcImage);
-        $origH = imagesy($srcImage);
-
-        if ($origW > $maxDim || $origH > $maxDim) {
-          if ($origW >= $origH) {
-            $newW = $maxDim;
-            $newH = (int)round($origH * ($maxDim / $origW));
-          } else {
-            $newH = $maxDim;
-            $newW = (int)round($origW * ($maxDim / $origH));
-          }
-          $dstImage = imagecreatetruecolor($newW, $newH);
-          if ($mimeType === 'image/png' || $mimeType === 'image/webp') {
-            imagealphablending($dstImage, false);
-            imagesavealpha($dstImage, true);
-          }
-          imagecopyresampled($dstImage, $srcImage, 0, 0, 0, 0, $newW, $newH, $origW, $origH);
-          imagedestroy($srcImage);
-          $srcImage = $dstImage;
-        }
-
-        ob_start();
-        switch ($mimeType) {
-          case 'image/jpeg': imagejpeg($srcImage, null, 85); break;
-          case 'image/png':  imagepng($srcImage, null, 6); break;
-          case 'image/gif':  imagegif($srcImage); break;
-          case 'image/webp': imagewebp($srcImage, null, 85); break;
-        }
-        $photoData = ob_get_clean();
-        imagedestroy($srcImage);
-
-        if (!empty($photoData)) {
-          $fileSize = strlen($photoData);
-          $originalName = basename(parse_url($imageUrl, PHP_URL_PATH)) ?: 'imported.jpg';
-          Database::query(
-            "INSERT INTO rec_photo (rec_id, photo_data, original_name, mime_type, file_size, is_primary) VALUES (?, ?, ?, ?, ?, 1)",
-            [$id, $photoData, $originalName, $mimeType, $fileSize]
-          );
-        }
-      }
-    }
+  $response = (new SafeHttpClient())->fetch($imageUrl, 10 * 1024 * 1024);
+  $photo = $response !== null ? ImageProcessor::normalize($response['body']) : null;
+  if ($photo !== null) {
+    $originalName = basename((string)parse_url($imageUrl, PHP_URL_PATH)) ?: 'imported.jpg';
+    Database::query(
+      "INSERT INTO rec_photo (rec_id, photo_data, original_name, mime_type, file_size, is_primary) VALUES (?, ?, ?, ?, ?, 1)",
+      [$id, $photo['data'], $originalName, $photo['mime'], strlen($photo['data'])]
+    );
   }
 }
 

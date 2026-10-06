@@ -84,9 +84,9 @@ function checkRateLimit(string $action, int $maxRequests, int $windowSeconds): b
 {
     return Security::checkRateLimit($action, $maxRequests, $windowSeconds);
 }
-function enforceRateLimit(string $action, int $maxRequests, int $windowSeconds): void
+function enforceRateLimit(string $action, int $maxRequests, int $windowSeconds, bool $failClosed = false): void
 {
-    Security::enforceRateLimit($action, $maxRequests, $windowSeconds);
+    Security::enforceRateLimit($action, $maxRequests, $windowSeconds, $failClosed);
 }
 function die_miserable_death($error)
 {

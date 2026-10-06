@@ -12,6 +12,13 @@
  * so multiply-escaped values are fully undone.
  */
 
+// Migrations change the schema; they run only from scripts/setup.php on the
+// command line, never from a web request.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
+
 use Recipes\Database\Database;
 
 $entityPattern = '&(amp|quot|lt|gt|#0?39);';

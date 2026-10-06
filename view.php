@@ -220,9 +220,10 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
 <div class="container mt-4">
 
-<?php if (!empty($_GET['error'])) { ?>
+<?php $flashError = Security::takeFlashError(); ?>
+<?php if ($flashError !== null) { ?>
 <div class="alert alert-danger alert-dismissible fade show" role="alert">
-  <?php echo htmlspecialchars($_GET['error'], ENT_QUOTES, 'UTF-8'); ?>
+  <?php echo htmlspecialchars($flashError, ENT_QUOTES, 'UTF-8'); ?>
   <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
 </div>
 <?php } ?>
@@ -316,9 +317,11 @@ foreach ($ingredients as $ingr) {
     echo "<li class=\"list-group-item\" data-orig-qty=\"" . htmlspecialchars($qty, ENT_QUOTES, 'UTF-8') . "\">" .
          "<span class=\"ingr-qty\">" . $displayQty . "</span> " . $rest . "</li>\n";
   } else {
-    $ingrText = trim($name);
-    if (!empty($prep)) $ingrText .= ", $prep";
-    echo "<li class=\"list-group-item\" data-orig-text=\"" . htmlspecialchars($ingrText, ENT_QUOTES, 'UTF-8') . "\">" . $ingrText . "</li>\n";
+    // Plain text, escaped exactly once; the scaling script writes it back with textContent.
+    $ingrText = trim($ingr['name']);
+    if (!empty($ingr['prep'])) $ingrText .= ", " . $ingr['prep'];
+    $safeText = htmlspecialchars($ingrText, ENT_QUOTES, 'UTF-8');
+    echo "<li class=\"list-group-item\" data-orig-text=\"" . $safeText . "\">" . $safeText . "</li>\n";
   }
 }
 ?>
@@ -661,7 +664,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 } else if (origText !== undefined) {
                     // Unstructured: parse and scale leading number in full text
-                    li.innerHTML = scaleText(origText, scale);
+                    // textContent, not innerHTML: origText is user-entered ingredient text
+                    li.textContent = scaleText(origText, scale);
                 }
             });
         });

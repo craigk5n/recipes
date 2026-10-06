@@ -15,6 +15,9 @@ class AuthManager
     private string $mode;
     private ?string $pin;
 
+    /** bcrypt hash of a random string, verified when the username doesn't exist. */
+    private const DUMMY_HASH = '$2y$10$rSzwPDj14B5a3ou8FQSKWOwyU024U4nXiwugGtn7rovTM2ufus0Fm';
+
     public function __construct()
     {
         $this->mode = Config::get('AUTH_MODE');
@@ -99,7 +102,11 @@ class AuthManager
             return false;
         }
 
-        if ($this->pin && $pin === $this->pin) {
+        if ($this->pin !== null && $this->pin !== '' && hash_equals($this->pin, $pin)) {
+            // New session id on privilege change, so a fixated id is useless.
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                session_regenerate_id(true);
+            }
             $_SESSION['auth_unlocked'] = true;
             return true;
         }
@@ -118,14 +125,16 @@ class AuthManager
             [$username]
         );
         
-        if ($res && $row = Database::fetchRow($res)) {
-            if (password_verify($password, $row[1])) {
-                session_regenerate_id(true);
-                $_SESSION['user_id'] = $row[0];
-                $_SESSION['username'] = $username;
-                $_SESSION['is_admin'] = $row[2];
-                return true;
-            }
+        $row = $res ? Database::fetchRow($res) : false;
+        // Always run password_verify so unknown usernames take as long as
+        // known ones and can't be enumerated by timing.
+        $hash = $row ? $row[1] : self::DUMMY_HASH;
+        if (password_verify($password, $hash) && $row) {
+            session_regenerate_id(true);
+            $_SESSION['user_id'] = $row[0];
+            $_SESSION['username'] = $username;
+            $_SESSION['is_admin'] = $row[2];
+            return true;
         }
 
         return false;

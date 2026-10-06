@@ -80,6 +80,40 @@ class Security
     }
 
     /**
+     * Queue an error message for the next page view. Messages travel in the
+     * session rather than the URL, so a crafted link cannot make the site
+     * display attacker-chosen text.
+     */
+    public static function flashError(string $message): void
+    {
+        $_SESSION['flash_error'] = $message;
+    }
+
+    /**
+     * Return and clear the queued error message, if any.
+     */
+    public static function takeFlashError(): ?string
+    {
+        $message = $_SESSION['flash_error'] ?? null;
+        unset($_SESSION['flash_error']);
+        return is_string($message) ? $message : null;
+    }
+
+    /**
+     * Return $target if it is a plain page of this app (e.g. "view.php?id=3"),
+     * otherwise $default. Prevents open redirects through user-supplied
+     * return URLs: no scheme, host, leading slash, backslash, "..", or
+     * control characters are allowed.
+     */
+    public static function localRedirect(?string $target, string $default = 'index.php'): string
+    {
+        if ($target === null || preg_match('#^[A-Za-z0-9_-]+\.php(?:\?[^\s\\\\]*)?$#D', $target) !== 1) {
+            return $default;
+        }
+        return $target;
+    }
+
+    /**
      * Encode data as JSON that is safe to place inside a <script> element:
      * <, >, & and quotes are emitted as \u escapes so the text can never
      * close the tag or open an HTML comment.
@@ -129,7 +163,7 @@ class Security
     {
         header("X-Frame-Options: DENY");
         header("X-Content-Type-Options: nosniff");
-        header("X-XSS-Protection: 1; mode=block");
+        header("X-XSS-Protection: 0");
         header("Referrer-Policy: strict-origin-when-cross-origin");
         header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http: https:; font-src 'self'");
     }
@@ -139,35 +173,15 @@ class Security
      */
     public static function handleError(string $error, int $status = 500): void
     {
-        // ... (Error handling logic from includes/security.php) ...
-        // Note: For now, I'll copy the existing logic directly.
-        // It should be refactored further to use a proper PSR-3 logger.
-
-        $logFile = __DIR__ . '/../../logs/error.log'; // Adjust path for src/Security
-        $timestamp = date('Y-m-d H:i:s');
-        $requestUri = $_SERVER['REQUEST_URI'] ?? 'unknown';
-        $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-
-        $logDir = dirname($logFile);
-        if (!is_dir($logDir)) {
-            @mkdir($logDir, 0750, true);
-        }
-
-        $logEntry = sprintf(
-            "[%s] %s | IP: %s | URI: %s
-%s
-%s
-",
-            $timestamp,
+        self::writeLog('error.log', sprintf(
+            "[%s] %s | IP: %s | URI: %s\n%s\n%s\n",
+            date('Y-m-d H:i:s'),
             $status,
-            $remoteAddr,
-            $requestUri,
+            $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+            $_SERVER['REQUEST_URI'] ?? 'unknown',
             $error,
             str_repeat('-', 80)
-        );
-
-        @file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
-        error_log("Recipe App Error: " . $error);
+        ));
 
         http_response_code($status);
 
@@ -176,7 +190,7 @@ class Security
             echo "<h2>Application Error</h2>";
             echo "<p><strong>Status:</strong> " . htmlspecialchars((string)$status) . "</p>";
             echo "<p><strong>Error:</strong> " . htmlspecialchars($error) . "</p>";
-            echo "<p><em>Check error log: logs/error.log</em></p>";
+            echo "<p><em>Check the error log (LOG_PATH, or the PHP error log).</em></p>";
             echo "</body></html>";
         } else {
             echo "<!DOCTYPE html><html><head><title>Error</title></head><body>";
@@ -196,79 +210,140 @@ class Security
     }
 
     /**
-     * Check rate limit for a specific action.
+     * Append to a log file in LOG_PATH. Without LOG_PATH (or if it isn't
+     * writable) the entry goes to PHP's error log instead: everything under
+     * this app is web-served, so logs must never be written inside it.
      */
-    public static function checkRateLimit(string $action, int $maxRequests, int $windowSeconds): bool
+    public static function writeLog(string $file, string $entry): void
     {
-        $sessionKey = 'rate_limit_' . $action;
-        $now = time();
-        
-        if (!isset($_SESSION[$sessionKey])) {
-            $_SESSION[$sessionKey] = [
-                'requests' => [],
-                'blocked_until' => 0
-            ];
-        }
-        
-        $rateData = &$_SESSION[$sessionKey];
-        
-        if ($rateData['blocked_until'] > $now) {
-            $logFile = __DIR__ . '/../../logs/security.log';
-            $logDir = dirname($logFile);
-            if (!is_dir($logDir)) {
-                @mkdir($logDir, 0750, true);
+        $dir = Config::get('LOG_PATH');
+        if (is_string($dir) && $dir !== '' && is_dir($dir) && is_writable($dir)) {
+            if (@file_put_contents($dir . '/' . basename($file), $entry, FILE_APPEND | LOCK_EX) !== false) {
+                return;
             }
-            $logEntry = sprintf(
-                "[%s] RATE LIMIT VIOLATION | Action: %s | IP: %s | URI: %s
-",
+        }
+        error_log('Recipe App [' . $file . '] ' . trim($entry));
+    }
+
+    /**
+     * Check rate limit for an action, per client IP.
+     *
+     * State lives in files under RATE_LIMIT_PATH (default: a private
+     * directory in the system temp dir), not in the session, so a client
+     * cannot reset its count by discarding the session cookie.
+     * Fails open (allows the request) if the state cannot be stored.
+     */
+    public static function checkRateLimit(
+        string $action,
+        int $maxRequests,
+        int $windowSeconds,
+        bool $failClosed = false
+    ): bool {
+        $ip = $_SERVER['REMOTE_ADDR'] ?? 'cli';
+        $dir = self::rateLimitDir();
+        $handle = $dir === null ? false : @fopen($dir . '/' . hash('sha256', $action . '|' . self::clientKey($ip)), 'c+');
+        if ($handle === false) {
+            error_log("Recipe App: rate limit state unavailable for '$action' (RATE_LIMIT_PATH not writable?)");
+            return !$failClosed;
+        }
+        if ($dir !== null && random_int(1, 100) === 1) {
+            self::pruneRateLimitDir($dir);
+        }
+
+        try {
+            flock($handle, LOCK_EX);
+            $data = json_decode((string)stream_get_contents($handle), true);
+            $requests = is_array($data['requests'] ?? null) ? $data['requests'] : [];
+            $blockedUntil = (int)($data['blocked_until'] ?? 0);
+            $now = time();
+
+            $allowed = true;
+            if ($blockedUntil > $now) {
+                $allowed = false;
+            } else {
+                $cutoff = $now - $windowSeconds;
+                $requests = array_values(array_filter($requests, fn($t) => $t > $cutoff));
+                if (count($requests) >= $maxRequests) {
+                    $blockedUntil = $now + $windowSeconds;
+                    $allowed = false;
+                } else {
+                    $requests[] = $now;
+                }
+            }
+
+            ftruncate($handle, 0);
+            rewind($handle);
+            fwrite($handle, (string)json_encode(['requests' => $requests, 'blocked_until' => $blockedUntil]));
+        } finally {
+            flock($handle, LOCK_UN);
+            fclose($handle);
+        }
+
+        if (!$allowed) {
+            self::writeLog('security.log', sprintf(
+                "[%s] RATE LIMIT | Action: %s | IP: %s | URI: %s\n",
                 date('Y-m-d H:i:s'),
                 $action,
-                $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+                $ip,
                 $_SERVER['REQUEST_URI'] ?? 'unknown'
-            );
-            @file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
-            
-            return false;
+            ));
         }
-        
-        $cutoff = $now - $windowSeconds;
-        $rateData['requests'] = array_filter($rateData['requests'], function($timestamp) use ($cutoff) {
-            return $timestamp > $cutoff;
-        });
-        
-        if (count($rateData['requests']) >= $maxRequests) {
-            $rateData['blocked_until'] = $now + $windowSeconds;
-            
-            $logFile = __DIR__ . '/../../logs/security.log';
-            $logDir = dirname($logFile);
-            if (!is_dir($logDir)) {
-                @mkdir($logDir, 0750, true);
+        return $allowed;
+    }
+
+    /**
+     * Rate-limit identity for an address. IPv6 clients usually control a whole
+     * /64, so they are grouped by that prefix to stop address rotation.
+     */
+    private static function clientKey(string $ip): string
+    {
+        $packed = @inet_pton($ip);
+        if ($packed !== false && strlen($packed) === 16) {
+            return bin2hex(substr($packed, 0, 8)) . '/64';
+        }
+        return $ip;
+    }
+
+    /**
+     * Delete state files untouched for a day so the directory cannot grow
+     * without bound.
+     */
+    private static function pruneRateLimitDir(string $dir): void
+    {
+        $cutoff = time() - 86400;
+        foreach (glob($dir . '/*') ?: [] as $file) {
+            if (@filemtime($file) < $cutoff) {
+                @unlink($file);
             }
-            $logEntry = sprintf(
-                "[%s] RATE LIMIT EXCEEDED | Action: %s | IP: %s | Count: %d | Window: %ds
-",
-                date('Y-m-d H:i:s'),
-                $action,
-                $_SERVER['REMOTE_ADDR'] ?? 'unknown',
-                count($rateData['requests']),
-                $windowSeconds
-            );
-            @file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
-            
-            return false;
         }
-        
-        $rateData['requests'][] = $now;
-        
-        return true;
+    }
+
+    private static function rateLimitDir(): ?string
+    {
+        $dir = Config::get('RATE_LIMIT_PATH');
+        if (!is_string($dir) || $dir === '') {
+            // Include the user id: a directory created by a CLI run as another
+            // user would otherwise be unwritable by the web server.
+            $uid = function_exists('posix_geteuid') ? (string)posix_geteuid() : get_current_user();
+            $dir = sys_get_temp_dir() . '/recipes-ratelimit-' . $uid . '-' . substr(hash('sha256', __DIR__), 0, 12);
+        }
+        if (!is_dir($dir) && !@mkdir($dir, 0700, true) && !is_dir($dir)) {
+            error_log("Recipe App: cannot create rate limit directory $dir");
+            return null;
+        }
+        return $dir;
     }
 
     /**
      * Enforce rate limit or return 429 error.
      */
-    public static function enforceRateLimit(string $action, int $maxRequests, int $windowSeconds): void
-    {
-        if (!self::checkRateLimit($action, $maxRequests, $windowSeconds)) {
+    public static function enforceRateLimit(
+        string $action,
+        int $maxRequests,
+        int $windowSeconds,
+        bool $failClosed = false
+    ): void {
+        if (!self::checkRateLimit($action, $maxRequests, $windowSeconds, $failClosed)) {
             self::handleError("Rate limit exceeded. Please try again later.", 429);
         }
     }

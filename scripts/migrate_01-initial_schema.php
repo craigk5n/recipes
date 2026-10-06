@@ -4,6 +4,13 @@
  * Creates the core tables for the application.
  */
 
+// Migrations change the schema; they run only from scripts/setup.php on the
+// command line, never from a web request.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
+
 use Recipes\Database\Database;
 
 Database::query("

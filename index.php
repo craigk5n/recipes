@@ -130,8 +130,7 @@ $res = Database::query(
   "ORDER BY r.rec_favorite DESC, r.rec_last_updated DESC"
 );
 if ( ! $res ) {
-  echo "Database error: " . Database::error();
-  exit;
+  die_miserable_death("Database error: " . Database::error());
 }
 
 ?>
