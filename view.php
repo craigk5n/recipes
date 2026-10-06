@@ -6,6 +6,7 @@ use function Recipes\I18n\t;
 use function Recipes\Auth\getAuthManager;
 use Recipes\Database\Database;
 use Recipes\Recipe\Category;
+use Recipes\Security\Security;
 
 $auth = getAuthManager();
 $id = sanitizeInt($_GET['id'] ?? 0);
@@ -108,7 +109,7 @@ $jsonLd = [
 if (!empty($source)) {
     $jsonLd['author'] = ['@type' => 'Person', 'name' => $source];
 }
-if (!empty($recUrl)) {
+if (Security::isHttpUrl((string)$recUrl)) {
     $jsonLd['url'] = $recUrl;
 }
 if (!empty($dateAdded)) {
@@ -158,7 +159,7 @@ if (!empty($instructionsText)) {
 <?php include "includes/js.php"; ?>
 <?php require_once "../style.css"; ?>
 <link rel="stylesheet" type="text/css" href="./styles-print.css" media="print" />
-<script type="application/ld+json"><?php echo json_encode($jsonLd, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT); ?></script>
+<script type="application/ld+json"><?php echo Security::jsonForScriptTag($jsonLd); ?></script>
 </head>
 <body style="margin: 0">
 <?php
@@ -274,7 +275,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
 <p class="text-muted"><strong><?php echo t('recipe.category'); ?>:</strong> <?php echo htmlspecialchars($catLabel, ENT_QUOTES, 'UTF-8'); ?></p>
 <?php } ?>
 
-<?php if (!empty($recUrl)) { ?>
+<?php if (Security::isHttpUrl((string)$recUrl)) { ?>
 <p class="text-muted"><strong>URL:</strong> <a href="<?php echo htmlspecialchars($recUrl, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener"><?php echo htmlspecialchars($recUrl, ENT_QUOTES, 'UTF-8'); ?></a></p>
 <?php } ?>
 

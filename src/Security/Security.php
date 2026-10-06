@@ -69,6 +69,31 @@ class Security
     }
 
     /**
+     * True only for absolute http:// or https:// URLs. Use before putting a
+     * user-supplied URL in an href or fetching it, since FILTER_VALIDATE_URL
+     * alone accepts javascript:, file:, data: and other schemes.
+     */
+    public static function isHttpUrl(string $url): bool
+    {
+        return filter_var($url, FILTER_VALIDATE_URL) !== false
+            && preg_match('#^https?://#i', $url) === 1;
+    }
+
+    /**
+     * Encode data as JSON that is safe to place inside a <script> element:
+     * <, >, & and quotes are emitted as \u escapes so the text can never
+     * close the tag or open an HTML comment.
+     */
+    public static function jsonForScriptTag(mixed $data): string
+    {
+        return (string)json_encode(
+            $data,
+            JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+                | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT
+        );
+    }
+
+    /**
      * Sanitize integer input.
      */
     public static function sanitizeInt(string|int|float $input): int
