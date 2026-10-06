@@ -108,13 +108,13 @@ enum Locale: string
 /**
  * Message parameter bag with type safety
  */
-readonly class MessageParameters
+class MessageParameters
 {
     /**
      * @param array<string, string|int|float> $parameters
      */
     public function __construct(
-        private array $parameters = []
+        private readonly array $parameters = []
     ) {}
     
     /**
