@@ -1,6 +1,7 @@
 <?php
 
 use Recipes\Recipe\RecipeTextParser;
+use Recipes\Security\Security;
 
 /**
  * Import a recipe from a URL by parsing JSON-LD schema.org Recipe data.
@@ -10,7 +11,7 @@ use Recipes\Recipe\RecipeTextParser;
  */
 function importRecipeFromUrl($url)
 {
-    if (!filter_var($url, FILTER_VALIDATE_URL)) {
+    if (!Security::isHttpUrl($url)) {
         return ['data' => null, 'error' => 'invalid_url'];
     }
 

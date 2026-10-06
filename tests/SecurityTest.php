@@ -69,4 +69,25 @@ class SecurityTest extends TestCase {
     public function testInvalidCsrfToken() {
         $this->assertFalse(validateCsrfToken("invalid_token"));
     }
+
+    public function testIsHttpUrlAcceptsWebUrls() {
+        $this->assertTrue(Security::isHttpUrl('https://example.com/recipe/'));
+        $this->assertTrue(Security::isHttpUrl('HTTP://example.com'));
+    }
+
+    public function testIsHttpUrlRejectsOtherSchemes() {
+        $this->assertFalse(Security::isHttpUrl('javascript:alert(1)'));
+        $this->assertFalse(Security::isHttpUrl('javascript://example.com/%0Aalert(1)'));
+        $this->assertFalse(Security::isHttpUrl('file:///etc/passwd'));
+        $this->assertFalse(Security::isHttpUrl('data:text/html,hi'));
+        $this->assertFalse(Security::isHttpUrl('example.com'));
+        $this->assertFalse(Security::isHttpUrl(''));
+    }
+
+    public function testJsonForScriptTagCannotCloseTheTag() {
+        $json = Security::jsonForScriptTag(['name' => '</script><script>alert(1)</script> & <!--']);
+        $this->assertStringNotContainsString('<', $json);
+        $this->assertStringNotContainsString('>', $json);
+        $this->assertSame(['name' => '</script><script>alert(1)</script> & <!--'], json_decode($json, true));
+    }
 }

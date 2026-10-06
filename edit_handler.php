@@ -7,6 +7,7 @@ use function Recipes\Auth\getAuthManager;
 use Recipes\Recipe\Category;
 use Recipes\Recipe\RecipeTextParser;
 use Recipes\Recipe\Unit;
+use Recipes\Security\Security;
 
 $auth = getAuthManager();
 if (!$auth->can('edit')) { // Global check for any edit permission (e.g., admin)
@@ -26,10 +27,16 @@ if (!$isNew && !$auth->can('edit', (int)$id)) {
     die_miserable_death("Unauthorized: You do not own this recipe.");
 }
 
-$recTitle = sanitizeString($_POST['title'] ?? '');
-$recSource = sanitizeString($_POST['source'] ?? '');
+// Stored as plain text; every page escapes these on output. Escaping here too
+// made titles like "M&M" show up as "M&amp;M" and grow on every re-save.
+$recTitle = trim($_POST['title'] ?? '');
+$recSource = trim($_POST['source'] ?? '');
 $recUrl = trim($_POST['url'] ?? '');
-$recCategory = sanitizeString($_POST['category'] ?? '');
+$recCategory = trim($_POST['category'] ?? '');
+
+if ($recUrl !== '' && !Security::isHttpUrl($recUrl)) {
+  die_miserable_death("Error: URL must start with http:// or https://.");
+}
 $instructions = trim($_POST['instructions'] ?? '');
 
 if (empty($recTitle)) {
@@ -153,7 +160,7 @@ try {
 
 // If an image URL was provided (from import), download and store it as a photo
 $imageUrl = trim($_POST['image_url'] ?? '');
-if (!empty($imageUrl) && filter_var($imageUrl, FILTER_VALIDATE_URL)) {
+if (!empty($imageUrl) && Security::isHttpUrl($imageUrl)) {
   $ch = curl_init();
   curl_setopt_array($ch, [
     CURLOPT_URL            => $imageUrl,

@@ -18,14 +18,15 @@ $error = '';
 $recipeData = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
+    die_miserable_death("Invalid CSRF token.");
+  }
+
   // Rate limit: 5 imports per hour
   enforceRateLimit('import', 5, 3600);
 
   if (isset($_POST['action']) && $_POST['action'] === 'edit_before_saving') {
     // Store data in session and redirect to edit.php
-    if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
-      die_miserable_death("Invalid CSRF token.");
-    }
     $_SESSION['import_data'] = json_decode($_POST['import_json'], true);
     header("Location: edit.php");
     exit;
@@ -240,6 +241,7 @@ if (!empty($meta)) { ?>
 <p>Enter the URL of a recipe page. The recipe data will be extracted automatically from sites that use structured data (most major recipe sites).</p>
 
 <form method="post" action="import.php">
+  <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
   <div class="mb-3">
     <label for="url" class="form-label">Recipe URL</label>
     <input type="url" class="form-control" id="url" name="url"
