@@ -13,7 +13,10 @@ if (PHP_SAPI !== 'cli') {
     exit;
 }
 
-include __DIR__ . "/../rec_includes.php";
+// Only the autoloader: setup.php runs every migration in one process, and the
+// full web bootstrap (rec_includes.php) redeclares functions and starts a
+// session. require_once also lets this file run on its own from the CLI.
+require_once __DIR__ . "/../vendor/autoload.php";
 
 use Recipes\Database\Database;
 
