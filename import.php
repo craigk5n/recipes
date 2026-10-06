@@ -200,10 +200,10 @@ if (!empty($meta)) { ?>
     <input type="hidden" name="instructions" value="<?php echo htmlspecialchars($recipeData['instructions'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
     <?php if (!empty($recipeData['ingredients'])) {
       foreach ($recipeData['ingredients'] as $ingr) { ?>
-    <input type="hidden" name="qty[]" value="">
-    <input type="hidden" name="unit[]" value="">
-    <input type="hidden" name="ingredient[]" value="<?php echo htmlspecialchars($ingr['raw'], ENT_QUOTES, 'UTF-8'); ?>">
-    <input type="hidden" name="prep[]" value="">
+    <input type="hidden" name="qty[]" value="<?php echo htmlspecialchars($ingr['qty'], ENT_QUOTES, 'UTF-8'); ?>">
+    <input type="hidden" name="unit[]" value="<?php echo htmlspecialchars($ingr['unit'], ENT_QUOTES, 'UTF-8'); ?>">
+    <input type="hidden" name="ingredient[]" value="<?php echo htmlspecialchars($ingr['name'], ENT_QUOTES, 'UTF-8'); ?>">
+    <input type="hidden" name="prep[]" value="<?php echo htmlspecialchars($ingr['prep'], ENT_QUOTES, 'UTF-8'); ?>">
     <?php }
     } ?>
     <button type="submit" class="btn btn-primary">Save Recipe</button>

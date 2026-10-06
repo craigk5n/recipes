@@ -54,6 +54,10 @@ class RecipeTextParser
         'bunch', 'bunches',
         'sprig', 'sprigs',
         'slice', 'slices',
+        'quart', 'quarts', 'qt',
+        'pint', 'pints', 'pt',
+        'gallon', 'gallons', 'gal',
+        'fluid ounce', 'fluid ounces', 'fl oz', 'fl. oz',
     ];
 
     /** @var string */
@@ -93,7 +97,7 @@ class RecipeTextParser
      */
     public static function parseIngredientLine(string $line): array
     {
-        $line = trim($line);
+        $line = self::cleanIngredientText($line);
         if ($line === '') {
             return ['qty' => '', 'unit' => '', 'name' => '', 'prep' => ''];
         }
@@ -111,29 +115,47 @@ class RecipeTextParser
         $line = strtr($line, self::FRACTION_MAP);
         // Fix digit immediately followed by fraction: "11/2" → "1 1/2"
         $line = preg_replace('/(\d)(\d\/\d)/', '$1 $2', $line);
+        // "1 and 1/2" → "1 1/2"
+        $line = preg_replace('/^(\d+)\s+and\s+(\d+\/\d+)/i', '$1 $2', $line);
 
         $qty = '';
         $remainder = $line;
 
-        // Extract leading quantity: "1 1/2", "1/2", "2", "2.5", "2-3"
-        if (preg_match('/^(\d+\s+\d+\/\d+|\d+\/\d+|\d+\.?\d*(?:\s*-\s*\d+\.?\d*)?)\s+/', $line, $m)) {
-            $qty = trim($m[1]);
+        $unitPattern = implode('|', array_map('preg_quote', self::UNIT_TOKENS));
+
+        // Extract leading quantity: "1 1/2", "1/2", "2", "2.5", "2-3", "1/4 - 1/3".
+        // The unit may follow directly with no space, as in "250g".
+        $number = '(?:\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?)';
+        $qtyPattern = '/^(' . $number . ')(?:\s*-\s*(' . $number . '))?(?:\s+|(?=(?:' . $unitPattern . ')\b))/i';
+        if (preg_match($qtyPattern, $line, $m)) {
+            $qty = isset($m[2]) ? $m[1] . '-' . $m[2] : $m[1];
             $remainder = substr($line, strlen($m[0]));
         }
 
         // Try to match a unit token
         $unit = '';
+        $altMeasure = '';
         if ($qty !== '') {
-            $unitPattern = implode('|', array_map('preg_quote', self::UNIT_TOKENS));
             if (preg_match('/^(' . $unitPattern . ')\.?\s+/i', $remainder, $m)) {
                 $rawUnit = strtolower(trim($m[1]));
                 $unitEnum = Unit::fromLegacy($rawUnit);
                 $unit = $unitEnum !== null ? $unitEnum->value : $rawUnit;
                 $remainder = substr($remainder, strlen($m[0]));
+
+                // Alternate measure after a slash: "250g / 9oz cream cheese"
+                $altPattern = '/^\/\s*(' . $number . '\s*(?:' . $unitPattern . ')\.?)\s+/i';
+                if (preg_match($altPattern, $remainder, $m)) {
+                    $altMeasure = $m[1];
+                    $remainder = substr($remainder, strlen($m[0]));
+                }
             }
         }
 
-        return self::splitNamePrep($qty, $unit, $remainder);
+        $result = self::splitNamePrep($qty, $unit, $remainder);
+        if ($altMeasure !== '') {
+            $result['name'] = trim($result['name'] . ' (' . $altMeasure . ')');
+        }
+        return $result;
     }
 
     /**
@@ -146,12 +168,75 @@ class RecipeTextParser
         $name = trim($remainder);
         $prep = '';
 
-        if (preg_match('/^(.+?),\s+(.+)$/', $name, $m)) {
-            $name = trim($m[1]);
-            $prep = trim($m[2]);
+        // Split at the first comma that is not inside parentheses, so
+        // "eggs (large, room temperature)" stays whole.
+        $comma = self::findTopLevelComma($name);
+        if ($comma !== null) {
+            $prep = trim(substr($name, $comma + 1));
+            $name = trim(substr($name, 0, $comma));
         }
 
         return ['qty' => $qty, 'unit' => $unit, 'name' => $name, 'prep' => $prep];
+    }
+
+    /**
+     * Byte offset of the first comma outside any parentheses, or null.
+     */
+    private static function findTopLevelComma(string $text): ?int
+    {
+        $depth = 0;
+        $len = strlen($text);
+        for ($i = 0; $i < $len; $i++) {
+            $c = $text[$i];
+            if ($c === '(') {
+                $depth++;
+            } elseif ($c === ')' && $depth > 0) {
+                $depth--;
+            } elseif ($c === ',' && $depth === 0 && $i > 0) {
+                return $i;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Normalize scraped ingredient text: decode HTML entities, unify
+     * whitespace, drop list bullets, and tidy parenthesis artifacts that
+     * recipe plugins leave behind ("((250g))", "()", "(, minced)").
+     */
+    public static function cleanIngredientText(string $line): string
+    {
+        $line = html_entity_decode($line, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $line = str_replace("\u{00A0}", ' ', $line);
+        $line = trim(preg_replace('/\s+/u', ' ', $line));
+        $line = preg_replace('/^[-*•–]\s+/u', '', $line);
+        $line = preg_replace('/\(\(([^()]*)\)\)/', '($1)', $line);
+        $line = preg_replace('/\(\s*,\s*/', '(', $line);
+        $line = preg_replace('/\s*\(\s*\)/', '', $line);
+        return trim($line);
+    }
+
+    /**
+     * Convert a quantity string ("1 1/4", "1/2", "2.5", "½") to a float.
+     *
+     * Returns null for anything that isn't a single number, such as a
+     * range ("2-3") or free text, so callers can keep it as text instead.
+     */
+    public static function quantityToFloat(string $qty): ?float
+    {
+        $qty = strtr(trim($qty), self::FRACTION_MAP);
+        $qty = preg_replace('/(\d)(\d\/\d)/', '$1 $2', $qty);
+
+        if (preg_match('/^\d+(?:\.\d+)?$/', $qty)) {
+            return (float)$qty;
+        }
+        if (preg_match('/^(?:(\d+)\s+)?(\d+)\/(\d+)$/', $qty, $m)) {
+            if ((int)$m[3] === 0) {
+                return null;
+            }
+            return (float)$m[1] + (int)$m[2] / (int)$m[3];
+        }
+        return null;
     }
 
     /**

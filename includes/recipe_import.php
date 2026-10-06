@@ -1,5 +1,7 @@
 <?php
 
+use Recipes\Recipe\RecipeTextParser;
+
 /**
  * Import a recipe from a URL by parsing JSON-LD schema.org Recipe data.
  *
@@ -257,12 +259,30 @@ function _getString($data, $key)
     }
     $val = $data[$key];
     if (is_string($val)) {
-        return trim($val);
+        return _cleanText($val);
     }
     if (is_array($val) && isset($val[0]) && is_string($val[0])) {
-        return trim($val[0]);
+        return _cleanText($val[0]);
     }
     return null;
+}
+
+/**
+ * Turn scraped markup into plain text: block-level tags become paragraph
+ * breaks, other tags are dropped, entities are decoded and non-breaking
+ * spaces become ordinary spaces.
+ */
+function _cleanText($text)
+{
+    $text = preg_replace('#<br\s*/?>#i', "\n", $text);
+    $text = preg_replace('#</(p|div|li|h[1-6])>#i', "\n\n", $text);
+    $text = strip_tags($text);
+    $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $text = str_replace("\u{00A0}", ' ', $text);
+    $text = preg_replace('/[ \t]+/', ' ', $text);
+    $text = preg_replace('/ *\n */', "\n", $text);
+    $text = preg_replace('/\n{3,}/', "\n\n", $text);
+    return trim($text);
 }
 
 /**
@@ -275,22 +295,22 @@ function _extractAuthor($author)
     }
 
     if (is_string($author)) {
-        return trim($author);
+        return _cleanText($author);
     }
 
     if (is_array($author)) {
       // Single author object: {"@type": "Person", "name": "..."}
         if (isset($author['name'])) {
-            return trim($author['name']);
+            return _cleanText($author['name']);
         }
       // Array of author objects
         if (isset($author[0])) {
             $first = $author[0];
             if (is_string($first)) {
-                return trim($first);
+                return _cleanText($first);
             }
             if (is_array($first) && isset($first['name'])) {
-                return trim($first['name']);
+                return _cleanText($first['name']);
             }
         }
     }
@@ -381,7 +401,7 @@ function _extractIngredients($ingredients)
         if (is_string($item)) {
             $text = trim($item);
             if ($text !== '') {
-                $result[] = ['raw' => $text];
+                $result[] = ['raw' => $text] + RecipeTextParser::parseIngredientLine($text);
             }
         }
     }
@@ -400,7 +420,7 @@ function _extractInstructions($instructions)
 
     if (is_string($instructions)) {
       // Strip HTML tags that some sites embed
-        return trim(strip_tags($instructions));
+        return _cleanText($instructions);
     }
 
     if (!is_array($instructions)) {
@@ -411,30 +431,30 @@ function _extractInstructions($instructions)
 
     foreach ($instructions as $item) {
         if (is_string($item)) {
-            $steps[] = trim(strip_tags($item));
+            $steps[] = _cleanText($item);
         } elseif (is_array($item)) {
             $type = $item['@type'] ?? '';
 
             if ($type === 'HowToStep') {
                 $text = $item['text'] ?? $item['name'] ?? '';
                 if (is_string($text) && trim($text) !== '') {
-                    $steps[] = trim(strip_tags($text));
+                    $steps[] = _cleanText($text);
                 }
             } elseif ($type === 'HowToSection') {
               // Section has a name and itemListElement with HowToStep items
                 $sectionName = $item['name'] ?? '';
                 if (is_string($sectionName) && trim($sectionName) !== '') {
-                    $steps[] = trim($sectionName) . ':';
+                    $steps[] = _cleanText($sectionName) . ':';
                 }
                 $subItems = $item['itemListElement'] ?? [];
                 if (is_array($subItems)) {
                     foreach ($subItems as $sub) {
                         if (is_string($sub)) {
-                              $steps[] = trim(strip_tags($sub));
+                              $steps[] = _cleanText($sub);
                         } elseif (is_array($sub)) {
                             $text = $sub['text'] ?? $sub['name'] ?? '';
                             if (is_string($text) && trim($text) !== '') {
-                                $steps[] = trim(strip_tags($text));
+                                $steps[] = _cleanText($text);
                             }
                         }
                     }
