@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Recipes\Recipe\RecipeTextParser;
 
@@ -140,6 +141,112 @@ class RecipeTextParserTest extends TestCase
         $this->assertEquals('', $result['unit']);
         $this->assertEquals('small fresh basil leaves', $result['name']);
         $this->assertEquals('chopped', $result['prep']);
+    }
+
+    // --- Real-world strings from imported recipe sites ---
+
+    /**
+     * @return array<string, array{string, string, string, string, string}>
+     */
+    public static function realWorldIngredientProvider(): array
+    {
+        return [
+            'comma inside parens stays in name' => [
+                '2  eggs (large, room temperature)', '2', '', 'eggs (large, room temperature)', '',
+            ],
+            'comma inside nested parens' => [
+                '½ cup (125 ml) broth (vegetable, chicken, or beef)', '1/2', 'cup', '(125 ml) broth (vegetable, chicken, or beef)', '',
+            ],
+            'top-level comma after parens still splits' => [
+                '2  small zucchini ((1 lb), cut into 1/2-inch thick slices)', '2', '', 'small zucchini ((1 lb), cut into 1/2-inch thick slices)', '',
+            ],
+            'collapses runs of whitespace' => [
+                '1 1/4  cups   grated fresh parmesan cheese, divided', '1 1/4', 'cups', 'grated fresh parmesan cheese', 'divided',
+            ],
+            'unwraps doubled parens' => [
+                '2 cups all-purpose flour ((250g))', '2', 'cups', 'all-purpose flour (250g)', '',
+            ],
+            'drops empty parens, keeps alternate measure' => [
+                '1/4 cup / 4 tbsp finely diced Chives ()', '1/4', 'cup', 'finely diced Chives (4 tbsp)', '',
+            ],
+            'metric unit attached to number' => [
+                '250g / 9oz full fat Cream Cheese', '250', 'gram', 'full fat Cream Cheese (9oz)', '',
+            ],
+            'attached unit with decimal alternate and prep' => [
+                '150g / 5.3oz  Dried Cranberries, (roughly diced)', '150', 'gram', 'Dried Cranberries (5.3oz)', '(roughly diced)',
+            ],
+            'attached unit without alternate' => [
+                '500ml chicken stock', '500', 'milliliter', 'chicken stock', '',
+            ],
+            'attached unit needs a word boundary' => [
+                '2 large eggs', '2', '', 'large eggs', '',
+            ],
+            'number followed by word starting with a unit letter' => [
+                '3 garlic cloves', '3', '', 'garlic cloves', '',
+            ],
+            'drops leading comma inside parens' => [
+                '4 cloves garlic (, minced (1 1/2 Tbsp))', '4', 'cloves', 'garlic (minced (1 1/2 Tbsp))', '',
+            ],
+            'mixed number written with and' => [
+                '1  and ½ cups (180 grams) powdered sugar, divided', '1 1/2', 'cups', '(180 grams) powdered sugar', 'divided',
+            ],
+            'fraction range' => [
+                '1/4 -1/3 cup Raspberry Jam', '1/4-1/3', 'cup', 'Raspberry Jam', '',
+            ],
+            'leading bullet dash' => [
+                '- 12 Oreos (crushed)', '12', '', 'Oreos (crushed)', '',
+            ],
+            'html entities decoded' => [
+                '2 1/2 cups m&amp;m&#39;s', '2 1/2', 'cups', "m&m's", '',
+            ],
+            'non-breaking space treated as space' => [
+                "1\u{00A0}cup&nbsp;milk", '1', 'cup', 'milk', '',
+            ],
+        ];
+    }
+
+    #[DataProvider('realWorldIngredientProvider')]
+    public function testParseRealWorldIngredient(string $line, string $qty, string $unit, string $name, string $prep): void
+    {
+        $result = RecipeTextParser::parseIngredientLine($line);
+        $this->assertSame(
+            ['qty' => $qty, 'unit' => $unit, 'name' => $name, 'prep' => $prep],
+            $result
+        );
+    }
+
+    // --- quantityToFloat tests ---
+
+    /**
+     * @return array<string, array{string, ?float}>
+     */
+    public static function quantityProvider(): array
+    {
+        return [
+            'integer'        => ['2', 2.0],
+            'decimal'        => ['2.5', 2.5],
+            'simple fraction' => ['1/2', 0.5],
+            'mixed fraction' => ['1 1/4', 1.25],
+            'unicode'        => ['¾', 0.75],
+            'unicode mixed'  => ['1½', 1.5],
+            'thirds'         => ['1/3', 1 / 3],
+            'range'          => ['2-3', null],
+            'fraction range' => ['1/4-1/3', null],
+            'empty'          => ['', null],
+            'words'          => ['a pinch', null],
+            'zero divisor'   => ['1/0', null],
+        ];
+    }
+
+    #[DataProvider('quantityProvider')]
+    public function testQuantityToFloat(string $qty, ?float $expected): void
+    {
+        $result = RecipeTextParser::quantityToFloat($qty);
+        if ($expected === null) {
+            $this->assertNull($result);
+        } else {
+            $this->assertEqualsWithDelta($expected, $result, 0.0001);
+        }
     }
 
     // --- Full recipe parse tests ---

@@ -5,6 +5,7 @@ include "rec_includes.php";
 use Recipes\Database\Database;
 use function Recipes\Auth\getAuthManager;
 use Recipes\Recipe\Category;
+use Recipes\Recipe\RecipeTextParser;
 use Recipes\Recipe\Unit;
 
 $auth = getAuthManager();
@@ -117,8 +118,17 @@ try {
     $unitEnum = Unit::fromLegacy($unitRaw);
     $unit = $unitEnum ? $unitEnum->value : $unitRaw;
 
-    // Pass NULL for empty quantity (FLOAT column rejects empty strings in strict mode)
-    $qtyParam = ($qty !== '') ? $qty : null;
+    // rec_quantity is FLOAT and strict mode rejects "1/2" or "1 1/4", so
+    // convert to a number. Anything that isn't one number (a range like
+    // "2-3") stays readable by moving it to the front of the name.
+    $qtyParam = null;
+    if ($qty !== '') {
+      $qtyParam = RecipeTextParser::quantityToFloat($qty);
+      if ($qtyParam === null) {
+        $name = trim("$qty $unit $name");
+        $unit = '';
+      }
+    }
 
     Database::query(
       "INSERT INTO rec_ingr (rec_id, rec_ingr_num, rec_quantity, rec_quantity_type, rec_name, rec_prep) VALUES (?, ?, ?, ?, ?, ?)",
